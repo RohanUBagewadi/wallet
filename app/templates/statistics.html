@@ -1,0 +1,64 @@
+﻿{% extends "base.html" %}
+{% block title %}Statistics - WalletApp{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block body %}
+<div class="app-shell">
+    {% include "partials/sidebar.html" %}
+    <main class="main-content">
+        <header class="top-bar">
+            <button class="menu-toggle" onclick="toggleSidebar()">&#9776;</button>
+            <h2>Statistics</h2>
+            <div class="month-selector">
+                <button onclick="changeYear(-1)">&#8249;</button>
+                <span id="yearLabel"></span>
+                <button onclick="changeYear(1)">&#8250;</button>
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            <!-- Monthly Overview -->
+            <div class="chart-card">
+                <h3>Monthly Income vs Expenses</h3>
+                <div style="position:relative;height:250px">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Expense by Category -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Expenses by Category</h3>
+                    <span id="totalExpenseBadge" class="total-eur-badge"></span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px">
+                    <div style="position:relative;height:220px">
+                        <canvas id="expenseDoughnut"></canvas>
+                    </div>
+                    <div id="expenseLegend" class="category-legend" style="align-self:center"></div>
+                </div>
+                <div id="expenseCatCards" class="stats-cat-grid"></div>
+            </div>
+
+            <!-- Income by Category -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Income by Category</h3>
+                    <span id="totalIncomeBadge" class="total-eur-badge" style="background:#E8F5E9;color:var(--income)"></span>
+                </div>
+                <div id="incomeCatCards" class="stats-cat-grid"></div>
+            </div>
+
+            <!-- Labels -->
+            <div class="card">
+                <div class="card-header"><h3>By Label</h3></div>
+                <div id="labelStats" class="stats-cat-grid"></div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='statistics.js') }}"></script>
+{% endblock %}

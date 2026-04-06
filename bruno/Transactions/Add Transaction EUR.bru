@@ -1,0 +1,22 @@
+meta {
+  name: Add Transaction EUR
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/transactions
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "wallet_id": 1,
+    "category_id": 1,
+    "type": "expense",
+    "amount": 50.00,
+    "date": "2026-04-06",
+    "note": "Groceries"
+  }
+}

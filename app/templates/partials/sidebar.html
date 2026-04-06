@@ -1,0 +1,40 @@
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <span class="sidebar-logo">💰</span>
+        <span class="sidebar-title">WalletApp</span>
+    </div>
+    <ul class="sidebar-nav">
+        <li><a href="{{ url_for('main.dashboard') }}" class="{% if request.endpoint == 'main.dashboard' %}active{% endif %}"><span class="nav-icon">📊</span> Dashboard</a></li>
+        <li><a href="{{ url_for('main.transactions') }}" class="{% if request.endpoint == 'main.transactions' %}active{% endif %}"><span class="nav-icon">💸</span> Transactions</a></li>
+        <li><a href="{{ url_for('main.budgets') }}" class="{% if request.endpoint == 'main.budgets' %}active{% endif %}"><span class="nav-icon">🎯</span> Budgets</a></li>
+        <li><a href="{{ url_for('main.wallets') }}" class="{% if request.endpoint == 'main.wallets' %}active{% endif %}"><span class="nav-icon">💳</span> Wallets</a></li>
+        <li><a href="{{ url_for('main.statistics') }}" class="{% if request.endpoint == 'main.statistics' %}active{% endif %}"><span class="nav-icon">📈</span> Statistics</a></li>
+        <li><a href="{{ url_for('main.loans') }}" class="{% if request.endpoint == 'main.loans' %}active{% endif %}"><span class="nav-icon">🤝</span> Loans</a></li>
+    </ul>
+    <div class="sidebar-footer">
+        <span class="user-name">{{ current_user.username }}</span>
+        <a href="{{ url_for('auth.logout') }}" class="logout-btn">Sign Out</a>
+    </div>
+</nav>
+
+<!-- Bottom nav for mobile -->
+<nav class="bottom-nav">
+    <a href="{{ url_for('main.dashboard') }}" class="{% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+        <span>📊</span><small>Home</small>
+    </a>
+    <a href="{{ url_for('main.transactions') }}" class="{% if request.endpoint == 'main.transactions' %}active{% endif %}">
+        <span>💸</span><small>Transactions</small>
+    </a>
+    <a href="{{ url_for('main.budgets') }}" class="{% if request.endpoint == 'main.budgets' %}active{% endif %}">
+        <span>🎯</span><small>Budgets</small>
+    </a>
+    <a href="{{ url_for('main.wallets') }}" class="{% if request.endpoint == 'main.wallets' %}active{% endif %}">
+        <span>💳</span><small>Wallets</small>
+    </a>
+    <a href="{{ url_for('main.statistics') }}" class="{% if request.endpoint == 'main.statistics' %}active{% endif %}">
+        <span>📈</span><small>Stats</small>
+    </a>
+    <a href="{{ url_for('main.loans') }}" class="{% if request.endpoint == 'main.loans' %}active{% endif %}">
+        <span>🤝</span><small>Loans</small>
+    </a>
+</nav>

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Transactions - WalletApp{% endblock %}
+{% block body %}
+<div class="app-shell">
+    {% include "partials/sidebar.html" %}
+    <main class="main-content">
+        <header class="top-bar">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <h2>Transactions</h2>
+            <div style="margin-left:auto;display:flex;gap:8px">
+                <button class="btn btn-outline btn-sm" onclick="exportCSV()">📥 Export CSV</button>
+                <label class="btn btn-outline btn-sm" style="cursor:pointer">📤 Import CSV
+                    <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="importCSV(this)">
+                </label>
+            </div>
+        </header>
+
+        <!-- Filters -->
+        <div class="filters-bar">
+            <select id="filterType" onchange="loadTransactions()">
+                <option value="">All Types</option>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+                <option value="transfer">Transfer / EMI</option>
+            </select>
+            <select id="filterWallet" onchange="loadTransactions()">
+                <option value="">All Wallets</option>
+            </select>
+            <select id="filterCategory" onchange="loadTransactions()">
+                <option value="">All Categories</option>
+            </select>
+            <input type="date" id="filterStart" onchange="loadTransactions()">
+            <input type="date" id="filterEnd" onchange="loadTransactions()">
+        </div>
+
+        <div id="transactionsList" class="transaction-list full-list"></div>
+
+        {% include "partials/add_transaction_modal.html" %}
+    </main>
+</div>
+<button class="fab" onclick="openAddModal()">+</button>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='transactions.js') }}"></script>
+{% endblock %}

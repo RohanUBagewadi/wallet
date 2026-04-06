@@ -1,0 +1,16 @@
+meta {
+  name: Login
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/auth/login
+  body: form
+  auth: none
+}
+
+body:form {
+  email: test@test.com
+  password: test123
+}

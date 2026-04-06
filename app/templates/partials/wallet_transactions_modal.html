@@ -1,0 +1,16 @@
+<!-- Wallet Transactions Drawer -->
+<div id="walletTxModal" class="modal hidden">
+    <div class="modal-overlay" onclick="closeModal('walletTxModal')"></div>
+    <div class="modal-content" style="max-height:85vh;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0">
+            <div>
+                <h3 id="walletTxModalTitle" style="margin:0"></h3>
+                <div id="walletTxModalSubtitle" style="font-size:.82rem;color:var(--text-secondary);margin-top:2px"></div>
+            </div>
+            <button class="btn-icon-del" onclick="closeModal('walletTxModal')" style="font-size:1.2rem;padding:4px 8px">&times;</button>
+        </div>
+        <div id="walletTxList" class="transaction-list" style="overflow-y:auto;flex:1;min-height:0">
+            <div class="tx-empty">Loading…</div>
+        </div>
+    </div>
+</div>

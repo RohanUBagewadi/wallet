@@ -1,0 +1,23 @@
+meta {
+  name: Add Transaction USD with Rate
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/transactions
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "wallet_id": 2,
+    "category_id": 1,
+    "type": "expense",
+    "amount": 100.00,
+    "exchange_rate": 0.92,
+    "date": "2026-04-06",
+    "note": "USD purchase, rate 1 USD = 0.92 EUR"
+  }
+}

@@ -1,0 +1,27 @@
+﻿{% extends "base.html" %}
+{% block title %}Loans - WalletApp{% endblock %}
+{% block body %}
+<div class="app-shell">
+    {% include "partials/sidebar.html" %}
+    <main class="main-content">
+        <header class="top-bar">
+            <button class="menu-toggle" onclick="toggleSidebar()">&#9776;</button>
+            <h2>Loans</h2>
+        </header>
+
+        <div class="dashboard-grid">
+            <div class="summary-cards" id="loanSummary"></div>
+            <div id="loansList" class="budgets-grid"></div>
+            <div class="card" style="padding:20px;color:var(--text-secondary);font-size:.9rem;text-align:center">
+                💡 To add a loan account, go to <a href="/wallets" style="color:var(--primary)">Wallets</a> and create a wallet with "Mark as Loan Account" enabled.
+            </div>
+        </div>
+
+        {% include "partials/wallet_transactions_modal.html" %}
+        {% include "partials/add_transaction_modal.html" %}
+    </main>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='loans.js') }}"></script>
+{% endblock %}

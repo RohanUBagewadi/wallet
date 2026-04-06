@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Wallets - WalletApp{% endblock %}
+{% block body %}
+<div class="app-shell">
+    {% include "partials/sidebar.html" %}
+    <main class="main-content">
+        <header class="top-bar">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <h2>Wallets</h2>
+        </header>
+
+        <div id="walletsList" class="wallets-grid"></div>
+
+        {% include "partials/wallet_transactions_modal.html" %}
+        {% include "partials/add_transaction_modal.html" %}
+
+        <!-- Add Wallet Modal -->
+        <div id="addWalletModal" class="modal hidden">
+            <div class="modal-overlay" onclick="closeModal('addWalletModal')"></div>
+            <div class="modal-content">
+                <h3 id="walletModalTitle">Add Wallet</h3>
+                <input type="hidden" id="editWalletId">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="walletName" placeholder="e.g., Bank Account">
+                </div>
+                <div class="form-group" id="walletBalanceGroup">
+                    <label>Starting Balance</label>
+                    <input type="number" id="walletBalance" placeholder="0.00" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Currency</label>
+                    <select id="walletCurrency">
+                        <option value="EUR" selected>€ EUR — Euro</option>
+                        <option value="USD">$ USD — US Dollar</option>
+                        <option value="INR">₹ INR — Indian Rupee</option>
+                        <option value="AUD">A$ AUD — Australian Dollar</option>
+                        <option value="GBP">£ GBP — British Pound</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Icon</label>
+                    <div class="icon-selector" id="walletIconSelector">
+                        <span class="icon-option selected" data-icon="💳">💳</span>
+                        <span class="icon-option" data-icon="💵">💵</span>
+                        <span class="icon-option" data-icon="🏦">🏦</span>
+                        <span class="icon-option" data-icon="💰">💰</span>
+                        <span class="icon-option" data-icon="🪙">🪙</span>
+                        <span class="icon-option" data-icon="📱">📱</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Color</label>
+                    <div class="color-selector" id="walletColorSelector">
+                        <span class="color-option selected" data-color="#4CAF50" style="background:#4CAF50"></span>
+                        <span class="color-option" data-color="#2196F3" style="background:#2196F3"></span>
+                        <span class="color-option" data-color="#FF9800" style="background:#FF9800"></span>
+                        <span class="color-option" data-color="#9C27B0" style="background:#9C27B0"></span>
+                        <span class="color-option" data-color="#F44336" style="background:#F44336"></span>
+                        <span class="color-option" data-color="#607D8B" style="background:#607D8B"></span>
+                    </div>
+                </div>
+                <!-- Loan section -->
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+                        <input type="checkbox" id="walletIsLoan" onchange="toggleLoanFields(this.checked)" style="width:18px;height:18px;cursor:pointer">
+                        🏦 Mark as Loan Account
+                    </label>
+                </div>
+                <div id="loanFields" style="display:none">
+                    <div class="form-group">
+                        <label>Outstanding Amount</label>
+                        <input type="number" id="walletLoanOutstanding" placeholder="e.g., 500000" step="0.01" min="0">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                        <div class="form-group">
+                            <label>Annual ROI (%)</label>
+                            <input type="number" id="walletLoanRoi" placeholder="e.g., 8.5" step="0.01" min="0" max="100">
+                        </div>
+                        <div class="form-group">
+                            <label>Tenure (months)</label>
+                            <input type="number" id="walletLoanTenure" placeholder="e.g., 60" step="1" min="1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Lender (Bank / Person)</label>
+                        <input type="text" id="walletLoanCounterparty" placeholder="e.g., HDFC Bank">
+                    </div>
+                    <div class="form-group">
+                        <label>Note (optional)</label>
+                        <input type="text" id="walletLoanNote" placeholder="e.g., Car loan">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" onclick="closeModal('addWalletModal')">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveWallet()">Save</button>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /#addWalletModal -->
+    </main>
+</div><!-- /.app-shell -->
+<button class="fab" onclick="openAddWallet()">+</button>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='wallets.js') }}"></script>
+{% endblock %}

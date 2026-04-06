@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - WalletApp{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block body %}
+<div class="app-shell">
+    {% include "partials/sidebar.html" %}
+    <main class="main-content">
+        <header class="top-bar">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <h2>Dashboard</h2>
+            <div class="month-selector">
+                <button onclick="changeMonth(-1)">‹</button>
+                <span id="monthLabel"></span>
+                <button onclick="changeMonth(1)">›</button>
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            <!-- Summary Cards -->
+            <div class="summary-cards">
+                <div class="stat-card stat-balance">
+                    <span class="stat-label">💰 Total Wealth (EUR)</span>
+                    <span class="stat-value" id="statBalance">€0</span>
+                    <span class="stat-sub" id="statBalanceSub" style="font-size:.75rem;color:var(--text-secondary)">across all wallets</span>
+                </div>
+                <div class="stat-card stat-income">
+                    <span class="stat-label">📈 Income</span>
+                    <span class="stat-value" id="statIncome">€0</span>
+                </div>
+                <div class="stat-card stat-expense">
+                    <span class="stat-label">📉 Expenses</span>
+                    <span class="stat-value" id="statExpense">€0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label" id="savingsLabel">💚 Net Savings</span>
+                    <span class="stat-value" id="statSavings">€0</span>
+                </div>
+            </div>
+
+            <!-- Wallet Breakdown -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>🏦 Wallets</h3>
+                    <span class="total-eur-badge" id="totalWealthBadge">Total: €0</span>
+                </div>
+                <div id="walletBreakdownGrid" class="wallet-breakdown-grid"></div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <h3>Spending Trend</h3>
+                    <canvas id="lineChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>By Category</h3>
+                    <canvas id="doughnutChart"></canvas>
+                    <div id="categoryLegend" class="category-legend"></div>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Recent Transactions</h3>
+                    <a href="{{ url_for('main.transactions') }}" class="link-btn">View All →</a>
+                </div>
+                <div id="recentTransactions" class="transaction-list"></div>
+            </div>
+        </div>
+
+        {% include "partials/add_transaction_modal.html" %}
+    </main>
+</div>
+
+<!-- FAB -->
+<button class="fab" onclick="openAddModal()">+</button>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+{% endblock %}

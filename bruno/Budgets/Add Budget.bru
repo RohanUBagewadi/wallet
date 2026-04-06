@@ -1,0 +1,20 @@
+meta {
+  name: Add Budget
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/budgets
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "category_id": 1,
+    "amount": 300,
+    "month": 4,
+    "year": 2026
+  }
+}

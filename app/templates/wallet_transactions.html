@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Account Transactions - WalletApp{% endblock %}
+{% block body %}
+<div class="app-shell">
+    {% include "partials/sidebar.html" %}
+    <main class="main-content">
+        <header class="top-bar">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <button class="btn btn-outline btn-sm" onclick="history.back()" style="margin-right:8px">← Back</button>
+            <div>
+                <h2 id="walletTxPageTitle" style="margin:0;font-size:1.1rem">Loading…</h2>
+                <div id="walletTxPageSubtitle" style="font-size:.8rem;color:var(--text-secondary);margin-top:1px"></div>
+            </div>
+        </header>
+
+        <!-- Filters -->
+        <div class="filters-bar">
+            <select id="filterType" onchange="loadWalletTxPage()">
+                <option value="">All Types</option>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+                <option value="transfer">Transfer / EMI</option>
+            </select>
+            <select id="filterCategory" onchange="loadWalletTxPage()">
+                <option value="">All Categories</option>
+            </select>
+            <input type="date" id="filterStart" onchange="loadWalletTxPage()">
+            <input type="date" id="filterEnd" onchange="loadWalletTxPage()">
+        </div>
+
+        <div id="walletTxPageList" class="transaction-list full-list"></div>
+
+        {% include "partials/add_transaction_modal.html" %}
+    </main>
+</div>
+<button class="fab" onclick="openAddModal()">+</button>
+{% endblock %}
+{% block scripts %}
+<script>
+const WALLET_ID = {{ wallet_id }};
+
+async function initWalletTxPage() {
+    // Load wallet info for header
+    const wallets = await api('/api/wallets');
+    const wallet = wallets.find(w => w.id === WALLET_ID);
+    if (wallet) {
+        document.getElementById('walletTxPageTitle').textContent = wallet.icon + ' ' + wallet.name;
+        document.getElementById('walletTxPageSubtitle').textContent =
+            wallet.is_loan
+                ? (wallet.loan_counterparty ? '🏦 Loan · ' + wallet.loan_counterparty : '🏦 Loan Account')
+                : wallet.currency + ' Account';
+        document.title = wallet.name + ' - WalletApp';
+    }
+
+    // Load category dropdown
+    const cats = await api('/api/categories');
+    document.getElementById('filterCategory').innerHTML =
+        '<option value="">All Categories</option>' +
+        cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+
+    loadWalletTxPage();
+}
+
+async function loadWalletTxPage() {
+    const type     = document.getElementById('filterType').value;
+    const category = document.getElementById('filterCategory').value;
+    const start    = document.getElementById('filterStart').value;
+    const end      = document.getElementById('filterEnd').value;
+
+    const params = new URLSearchParams({ wallet_id: WALLET_ID });
+    if (category) params.set('category_id', category);
+    if (start) params.set('start', start);
+    if (end)   params.set('end', end);
+    if (type && type !== 'transfer') params.set('type', type);
+
+    const showTransfers = !type || type === 'transfer';
+    const showRegular   = !type || type === 'income' || type === 'expense';
+
+    const [txns, transfers] = await Promise.all([
+        showRegular   ? api('/api/transactions?' + params.toString()) : Promise.resolve([]),
+        showTransfers ? api('/api/transfers')                         : Promise.resolve([]),
+    ]);
+
+    const all = [
+        ...(txns || []),
+        ...(transfers || []).filter(t => {
+            if (t.from_wallet_id !== WALLET_ID && t.to_wallet_id !== WALLET_ID) return false;
+            if (start && t.date < start) return false;
+            if (end   && t.date > end)   return false;
+            return true;
+        }),
+    ].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+
+    const container = document.getElementById('walletTxPageList');
+    if (all.length === 0) {
+        container.innerHTML = '<div class="tx-empty">No transactions found</div>';
+        return;
+    }
+
+    let html = '';
+    let lastDate = '';
+    for (const item of all) {
+        if (item.date !== lastDate) {
+            lastDate = item.date;
+            html += `<div class="date-group-header">${formatDate(item.date)}</div>`;
+        }
+        html += item.is_transfer ? renderTransferItem(item, true) : renderTxItem(item, true);
+    }
+    container.innerHTML = html;
+}
+
+function refreshPage() {
+    loadWalletTxPage();
+}
+
+initWalletTxPage();
+</script>
+{% endblock %}

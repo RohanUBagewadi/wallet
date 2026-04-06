@@ -1,0 +1,19 @@
+meta {
+  name: Create Wallet EUR
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/wallets
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "Main EUR",
+    "currency": "EUR",
+    "balance": 1000
+  }
+}
