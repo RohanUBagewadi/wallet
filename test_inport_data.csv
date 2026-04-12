@@ -5,6 +5,5 @@ Date,Wallet,Type,Category name,Amount,Currency,Note,Labels
 2024-03-27T12:28:49+00:00,DeutscheBankNew,Income,Salary,2874.92,EUR,SEPA ,
 2024-03-28T12:28:51+00:00,DeutscheBankNew,Expense,Loan,-680,EUR,SEPA Deutsche Bank AG,DBLoan
 2024-03-28T12:28:52+00:00,DeutscheBankNew,Expense,Bills & Fees,-21.3,EUR,"Payment Reference
-Balance of settlement items",
 2024-04-02T11:28:53+00:00,DeutscheBankNew,Income,Deal Doctor ,3.75,EUR,,
 2024-04-02T11:28:54+00:00,DeutscheBankNew,Outgoing Transfer,,-120,EUR,,
