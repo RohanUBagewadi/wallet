@@ -41,6 +41,7 @@ class Wallet(db.Model):
     icon = db.Column(db.String(10), default="💳")
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_credit_card = db.Column(db.Boolean, default=False)
     # Loan fields
     is_loan = db.Column(db.Boolean, default=False)
     loan_outstanding = db.Column(db.Float, nullable=True)   # original principal
@@ -93,6 +94,42 @@ class Transaction(db.Model):
                              backref=db.backref("transactions", lazy=True))
 
 
+class RecurringTransaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    amount = db.Column(db.Float, nullable=False)
+    exchange_rate = db.Column(db.Float, default=1.0)
+    type = db.Column(db.String(10), nullable=False)  # 'income' or 'expense'
+    note = db.Column(db.String(200), default="")
+    frequency = db.Column(db.String(20), nullable=False)  # weekly, monthly, 3months, 6months, yearly
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=True)
+    next_date = db.Column(db.Date, nullable=False)
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    wallet_id = db.Column(db.Integer, db.ForeignKey("wallet.id"), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey("category.id"), nullable=False)
+
+    wallet = db.relationship("Wallet")
+    category = db.relationship("Category")
+
+    def advance_next_date(self):
+        """Move next_date forward by the frequency interval."""
+        from dateutil.relativedelta import relativedelta
+        freq_map = {
+            "weekly": relativedelta(weeks=1),
+            "monthly": relativedelta(months=1),
+            "3months": relativedelta(months=3),
+            "6months": relativedelta(months=6),
+            "yearly": relativedelta(years=1),
+        }
+        delta = freq_map.get(self.frequency, relativedelta(months=1))
+        self.next_date = self.next_date + delta
+        if self.end_date and self.next_date > self.end_date:
+            self.active = False
+
+
 class Budget(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     amount = db.Column(db.Float, nullable=False)
@@ -114,6 +151,7 @@ class Transfer(db.Model):
     date = db.Column(db.Date, nullable=False, default=date.today)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    is_extra_payment = db.Column(db.Boolean, default=False)
 
     from_wallet = db.relationship("Wallet", foreign_keys=[from_wallet_id])
     to_wallet = db.relationship("Wallet", foreign_keys=[to_wallet_id])

@@ -4,7 +4,7 @@ from datetime import date, datetime
 from flask import Blueprint, request, jsonify, make_response
 from flask_login import login_required, current_user
 from app import db
-from app.models import Transaction, Wallet, Category, Budget, Label, Transfer, SUPPORTED_CURRENCIES, transaction_labels
+from app.models import Transaction, Wallet, Category, Budget, Label, Transfer, RecurringTransaction, SUPPORTED_CURRENCIES, transaction_labels
 from sqlalchemy import func, extract
 
 api_bp = Blueprint("api", __name__)
@@ -209,6 +209,134 @@ def bulk_delete_transactions():
 
     db.session.commit()
     return jsonify({"deleted": deleted})
+
+
+# --- Recurring Transactions ---
+
+VALID_FREQUENCIES = ("weekly", "monthly", "3months", "6months", "yearly")
+
+
+@api_bp.route("/recurring", methods=["GET"])
+@login_required
+def get_recurring():
+    recs = RecurringTransaction.query.filter_by(user_id=current_user.id).order_by(RecurringTransaction.next_date).all()
+    return jsonify([_recurring_to_dict(r) for r in recs])
+
+
+@api_bp.route("/recurring", methods=["POST"])
+@login_required
+def add_recurring():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    amount = data.get("amount")
+    tx_type = data.get("type")
+    wallet_id = data.get("wallet_id")
+    category_id = data.get("category_id")
+    frequency = data.get("frequency")
+    start_date_str = data.get("start_date")
+
+    if not all([amount, tx_type, wallet_id, category_id, frequency, start_date_str]):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    if frequency not in VALID_FREQUENCIES:
+        return jsonify({"error": f"Invalid frequency. Use: {', '.join(VALID_FREQUENCIES)}"}), 400
+
+    amount = float(amount)
+    if amount <= 0:
+        return jsonify({"error": "Amount must be positive"}), 400
+
+    wallet = Wallet.query.filter_by(id=wallet_id, user_id=current_user.id).first()
+    if not wallet:
+        return jsonify({"error": "Wallet not found"}), 404
+
+    exchange_rate = 1.0 if wallet.currency == "EUR" else float(data.get("exchange_rate", 1.0))
+    if exchange_rate <= 0:
+        exchange_rate = 1.0
+
+    start_date = date.fromisoformat(start_date_str)
+    end_date = date.fromisoformat(data["end_date"]) if data.get("end_date") else None
+
+    rec = RecurringTransaction(
+        amount=amount,
+        exchange_rate=exchange_rate,
+        type=tx_type,
+        note=data.get("note", ""),
+        frequency=frequency,
+        start_date=start_date,
+        end_date=end_date,
+        next_date=start_date,
+        active=True,
+        user_id=current_user.id,
+        wallet_id=wallet_id,
+        category_id=category_id,
+    )
+    db.session.add(rec)
+    db.session.commit()
+    return jsonify(_recurring_to_dict(rec)), 201
+
+
+@api_bp.route("/recurring/<int:rid>", methods=["DELETE"])
+@login_required
+def delete_recurring(rid):
+    rec = RecurringTransaction.query.filter_by(id=rid, user_id=current_user.id).first()
+    if not rec:
+        return jsonify({"error": "Not found"}), 404
+    db.session.delete(rec)
+    db.session.commit()
+    return jsonify({"success": True})
+
+
+@api_bp.route("/recurring/<int:rid>/toggle", methods=["POST"])
+@login_required
+def toggle_recurring(rid):
+    rec = RecurringTransaction.query.filter_by(id=rid, user_id=current_user.id).first()
+    if not rec:
+        return jsonify({"error": "Not found"}), 404
+    rec.active = not rec.active
+    db.session.commit()
+    return jsonify(_recurring_to_dict(rec))
+
+
+def process_recurring_transactions():
+    """Create actual transactions for any recurring entries whose next_date <= today."""
+    today = date.today()
+    due = RecurringTransaction.query.filter(
+        RecurringTransaction.active == True,
+        RecurringTransaction.next_date <= today,
+    ).all()
+
+    for rec in due:
+        while rec.active and rec.next_date <= today:
+            wallet = Wallet.query.get(rec.wallet_id)
+            if not wallet:
+                rec.active = False
+                break
+
+            amount_eur = rec.amount * rec.exchange_rate if wallet.currency != "EUR" else rec.amount
+
+            tx = Transaction(
+                amount=rec.amount,
+                amount_eur=amount_eur,
+                exchange_rate=rec.exchange_rate,
+                type=rec.type,
+                note=rec.note,
+                date=rec.next_date,
+                user_id=rec.user_id,
+                wallet_id=rec.wallet_id,
+                category_id=rec.category_id,
+            )
+            db.session.add(tx)
+
+            if rec.type == "income":
+                wallet.balance += rec.amount
+            else:
+                wallet.balance -= rec.amount
+
+            rec.advance_next_date()
+
+    db.session.commit()
 
 
 # --- Labels ---
@@ -484,8 +612,12 @@ def import_mapped():
             if not cat:
                 cat = categories.get("others") or categories.get("other") or (list(categories.values())[0] if categories else None)
             if not cat:
-                errors.append(f"Row {i}: No category found")
-                continue
+                # Create "Others" category on the fly
+                other_cat = Category(name="Others", type=tx_type, color="#90A4AE", icon="📦")
+                db.session.add(other_cat)
+                db.session.flush()
+                categories[other_cat.name.lower()] = other_cat
+                cat = other_cat
 
             # --- Note ---
             note = ""
@@ -590,6 +722,7 @@ def add_wallet():
         color=data.get("color", "#4CAF50"),
         icon=data.get("icon", "💳"),
         user_id=current_user.id,
+        is_credit_card=bool(data.get("is_credit_card", False)),
         is_loan=is_loan,
         loan_outstanding=loan_outstanding,
         loan_roi=float(data["loan_roi"]) if data.get("loan_roi") not in (None, "") else None,
@@ -618,6 +751,8 @@ def update_wallet(wid):
             w.currency = currency
     if "balance" in data:
         w.balance = float(data["balance"])
+    if "is_credit_card" in data:
+        w.is_credit_card = bool(data["is_credit_card"])
     if "is_loan" in data:
         w.is_loan = bool(data["is_loan"])
     if "loan_outstanding" in data:
@@ -694,6 +829,7 @@ def add_transfer():
         note=data.get("note", ""),
         date=date.fromisoformat(data["date"]) if data.get("date") else date.today(),
         user_id=current_user.id,
+        is_extra_payment=bool(data.get("is_extra_payment", False)),
     )
     db.session.add(transfer)
     from_wallet.balance -= from_amount
@@ -703,6 +839,65 @@ def add_transfer():
         to_wallet.balance += to_amount
     db.session.commit()
     return jsonify(_transfer_to_dict(transfer)), 201
+
+
+@api_bp.route("/transfers/<int:tid>", methods=["PUT"])
+@login_required
+def update_transfer(tid):
+    transfer = Transfer.query.filter_by(id=tid, user_id=current_user.id).first()
+    if not transfer:
+        return jsonify({"error": "Not found"}), 404
+
+    data = request.get_json()
+
+    # Reverse old wallet balance changes
+    old_from = Wallet.query.get(transfer.from_wallet_id)
+    old_to = Wallet.query.get(transfer.to_wallet_id)
+    if old_from:
+        old_from.balance += transfer.from_amount
+    if old_to:
+        if old_to.is_loan:
+            old_to.balance += transfer.to_amount
+        else:
+            old_to.balance -= transfer.to_amount
+
+    # Update transfer fields
+    from_wallet_id = int(data.get("from_wallet_id", transfer.from_wallet_id))
+    to_wallet_id = int(data.get("to_wallet_id", transfer.to_wallet_id))
+    from_amount = float(data.get("from_amount", transfer.from_amount))
+
+    from_wallet = Wallet.query.filter_by(id=from_wallet_id, user_id=current_user.id).first()
+    to_wallet = Wallet.query.filter_by(id=to_wallet_id, user_id=current_user.id).first()
+    if not from_wallet or not to_wallet:
+        return jsonify({"error": "Wallet not found"}), 404
+
+    if from_wallet.currency == to_wallet.currency:
+        exchange_rate = 1.0
+        to_amount = from_amount
+    else:
+        exchange_rate = float(data.get("exchange_rate", 1.0))
+        if exchange_rate <= 0:
+            exchange_rate = 1.0
+        to_amount = round(from_amount * exchange_rate, 6)
+
+    transfer.from_wallet_id = from_wallet_id
+    transfer.to_wallet_id = to_wallet_id
+    transfer.from_amount = from_amount
+    transfer.to_amount = to_amount
+    transfer.exchange_rate = exchange_rate
+    transfer.note = data.get("note", transfer.note)
+    transfer.date = date.fromisoformat(data["date"]) if data.get("date") else transfer.date
+    transfer.is_extra_payment = bool(data.get("is_extra_payment", False))
+
+    # Apply new wallet balance changes
+    from_wallet.balance -= from_amount
+    if to_wallet.is_loan:
+        to_wallet.balance -= to_amount
+    else:
+        to_wallet.balance += to_amount
+
+    db.session.commit()
+    return jsonify(_transfer_to_dict(transfer))
 
 
 @api_bp.route("/transfers/<int:tid>", methods=["DELETE"])
@@ -732,6 +927,47 @@ def delete_transfer(tid):
 def get_categories():
     cats = Category.query.all()
     return jsonify([{"id": c.id, "name": c.name, "type": c.type, "color": c.color, "icon": c.icon} for c in cats])
+
+
+@api_bp.route("/categories", methods=["POST"])
+@login_required
+def add_category():
+    data = request.get_json()
+    name = (data.get("name") or "").strip()
+    cat_type = data.get("type", "expense")
+    color = data.get("color", "#607D8B")
+    icon = data.get("icon", "📦")
+
+    if not name:
+        return jsonify({"error": "Name is required"}), 400
+    if cat_type not in ("income", "expense"):
+        return jsonify({"error": "Type must be income or expense"}), 400
+
+    existing = Category.query.filter_by(name=name, type=cat_type).first()
+    if existing:
+        return jsonify({"error": f"Category '{name}' already exists for {cat_type}"}), 409
+
+    cat = Category(name=name, type=cat_type, color=color, icon=icon)
+    db.session.add(cat)
+    db.session.commit()
+    return jsonify({"id": cat.id, "name": cat.name, "type": cat.type, "color": cat.color, "icon": cat.icon}), 201
+
+
+@api_bp.route("/categories/<int:cid>", methods=["DELETE"])
+@login_required
+def delete_category(cid):
+    cat = Category.query.get(cid)
+    if not cat:
+        return jsonify({"error": "Category not found"}), 404
+
+    # Check if any transactions use this category
+    tx_count = Transaction.query.filter_by(category_id=cid).count()
+    if tx_count > 0:
+        return jsonify({"error": f"Cannot delete: {tx_count} transaction(s) use this category. Reassign them first."}), 409
+
+    db.session.delete(cat)
+    db.session.commit()
+    return jsonify({"success": True})
 
 
 # --- Budgets (amounts in EUR) ---
@@ -874,27 +1110,39 @@ def get_stats():
             "name": w.name, "balance": w.balance, "currency": w.currency,
             "symbol": SUPPORTED_CURRENCIES.get(w.currency, {}).get("symbol", "€"),
             "balance_eur": _est_eur(w), "color": w.color, "icon": w.icon,
+            "is_credit_card": bool(getattr(w, 'is_credit_card', False)),
         }
-        for w in wallets
+        for w in wallets if not w.is_loan
     ]
     total_balance_eur = round(sum(d["balance_eur"] for d in wallet_data), 2)
 
-    # Build running daily balance for the selected month
+    # Build running daily balance + daily income/expense for the selected month
+    income_by_date = {}
+    expense_by_date = {}
     flows_by_date = {}
     for row in daily_flows_raw:
         d = row[0]
         flows_by_date.setdefault(d, 0.0)
         if row[1] == "income":
             flows_by_date[d] += float(row[2])
+            income_by_date[d] = income_by_date.get(d, 0.0) + float(row[2])
         else:
             flows_by_date[d] -= float(row[2])
+            expense_by_date[d] = expense_by_date.get(d, 0.0) + float(row[2])
 
     balance_start = round(total_balance_eur - (float(income) - float(expense)), 2)
     running = balance_start
     daily_balance = [{"date": f"{year}-{str(month).zfill(2)}-01", "balance": balance_start}]
+    daily_income_expense = []
     for d in sorted(flows_by_date.keys()):
         running = round(running + flows_by_date[d], 2)
         daily_balance.append({"date": d.isoformat(), "balance": running})
+    for d in sorted(set(list(income_by_date.keys()) + list(expense_by_date.keys()))):
+        daily_income_expense.append({
+            "date": d.isoformat(),
+            "income": round(income_by_date.get(d, 0.0), 2),
+            "expense": round(expense_by_date.get(d, 0.0), 2),
+        })
 
     return jsonify({
         "income": float(income),
@@ -904,6 +1152,7 @@ def get_stats():
         "by_category": [{"name": c[0], "color": c[1], "icon": c[2], "total": float(c[3])} for c in by_category],
         "daily": [{"date": d[0].isoformat(), "amount": float(d[1])} for d in daily],
         "daily_balance": daily_balance,
+        "daily_income_expense": daily_income_expense,
         "wallets_summary": wallet_data,
     })
 
@@ -1044,6 +1293,133 @@ def get_loans():
     return jsonify(result)
 
 
+@api_bp.route("/loans/<int:wid>/schedule", methods=["GET"])
+@login_required
+def get_loan_schedule(wid):
+    """Generate amortization schedule for a loan wallet, overlaying actual payments."""
+    from dateutil.relativedelta import relativedelta
+
+    w = Wallet.query.filter_by(id=wid, user_id=current_user.id, is_loan=True).first()
+    if not w:
+        return jsonify({"error": "Loan not found"}), 404
+
+    principal = w.loan_outstanding or w.balance
+    roi = w.loan_roi or 0
+    tenure = w.loan_tenure or 0
+    monthly_rate = roi / 12 / 100
+
+    if monthly_rate > 0 and tenure > 0:
+        emi = principal * monthly_rate * (1 + monthly_rate) ** tenure / ((1 + monthly_rate) ** tenure - 1)
+    elif tenure > 0:
+        emi = principal / tenure
+    else:
+        emi = 0
+    emi = round(emi, 2)
+
+    # Gather actual payments (transfers INTO this loan wallet, which reduce balance)
+    transfers_in = Transfer.query.filter_by(to_wallet_id=wid, user_id=current_user.id).order_by(Transfer.date).all()
+    # Group actual payments by month (YYYY-MM), separating regular and extra
+    actual_by_month = {}
+    for tr in transfers_in:
+        key = tr.date.strftime("%Y-%m")
+        actual_by_month.setdefault(key, {"regular": 0.0, "extra": 0.0})
+        if tr.is_extra_payment:
+            actual_by_month[key]["extra"] += tr.to_amount
+        else:
+            actual_by_month[key]["regular"] += tr.to_amount
+
+    # Determine start date: wallet creation or first transfer, whichever is earlier
+    first_transfer = transfers_in[0].date if transfers_in else None
+    if w.created_at:
+        loan_start = w.created_at.date() if hasattr(w.created_at, 'date') else w.created_at
+        # Use first day of that month
+        loan_start = loan_start.replace(day=1)
+    else:
+        loan_start = date.today().replace(day=1)
+    if first_transfer and first_transfer.replace(day=1) < loan_start:
+        loan_start = first_transfer.replace(day=1)
+
+    schedule = []
+    balance = principal  # keep full precision, only round for display
+    cumulative_interest = 0.0
+    num_months = tenure if tenure > 0 else 360  # cap at 30yr if no tenure
+
+    for i in range(1, num_months + 1):
+        if balance <= 0.005:  # effectively zero
+            break
+
+        pmt_date = loan_start + relativedelta(months=i - 1)
+        month_key = pmt_date.strftime("%Y-%m")
+        beginning_balance = round(balance, 2)
+
+        # Step 1: Interest on current balance (bank formula: balance × monthly rate)
+        interest = round(balance * monthly_rate, 2)
+
+        # Actual payments this month (using is_extra_payment flag)
+        month_data = actual_by_month.get(month_key, {"regular": 0.0, "extra": 0.0})
+        regular_paid = round(month_data["regular"], 2)
+        extra_paid = round(month_data["extra"], 2)
+        actual_total = regular_paid + extra_paid
+
+        if actual_total > 0:
+            # Actual payments were made this month
+            # Payment = regular EMI portion (what was paid as scheduled EMI)
+            payment = regular_paid
+            extra = extra_paid
+            # Step 2: Principal = Total paid − Interest for this month
+            total_principal = round(actual_total - interest, 2)
+            if total_principal < 0:
+                total_principal = 0.0
+        else:
+            # No actual payment yet — use scheduled (theoretical) values
+            payment = emi
+            extra = 0.0
+            # Step 2: Scheduled principal = EMI − Interest
+            total_principal = round(emi - interest, 2)
+
+        # Last payment adjustment: cap principal so balance doesn't go negative
+        if total_principal > beginning_balance:
+            total_principal = beginning_balance
+            if actual_total > 0:
+                payment = round(interest + total_principal - extra, 2)
+            else:
+                payment = round(interest + total_principal, 2)
+                extra = 0.0
+
+        # Step 3: Ending Balance = Beginning Balance − Principal paid
+        balance = round(beginning_balance - total_principal, 2)
+        if balance < 0:
+            balance = 0.0
+
+        # Step 4: Cumulative interest
+        cumulative_interest = round(cumulative_interest + interest, 2)
+
+        schedule.append({
+            "pmt_no": i,
+            "date": pmt_date.strftime("%d/%m/%Y"),
+            "date_iso": pmt_date.isoformat(),
+            "beginning_balance": beginning_balance,
+            "payment": round(payment, 2),
+            "extra_payment": round(extra, 2),
+            "principal": round(total_principal, 2),
+            "interest": interest,
+            "ending_balance": balance,
+            "total_interest": cumulative_interest,
+            "has_actual": actual_total > 0,
+        })
+
+    symbol = SUPPORTED_CURRENCIES.get(w.currency, {}).get("symbol", "€")
+    return jsonify({
+        "wallet": _wallet_to_dict(w),
+        "emi": emi,
+        "principal": principal,
+        "roi": roi,
+        "tenure": tenure,
+        "symbol": symbol,
+        "schedule": schedule,
+    })
+
+
 # --- Helpers ---
 
 def _tx_to_dict(t):
@@ -1089,6 +1465,7 @@ def _transfer_to_dict(t):
         "note": t.note,
         "date": t.date.isoformat(),
         "is_transfer": True,
+        "is_extra_payment": bool(t.is_extra_payment),
     }
 
 
@@ -1102,10 +1479,44 @@ def _wallet_to_dict(w):
         "symbol": symbol,
         "color": w.color,
         "icon": w.icon,
+        "is_credit_card": bool(getattr(w, 'is_credit_card', False)),
         "is_loan": bool(w.is_loan),
         "loan_outstanding": w.loan_outstanding,
         "loan_roi": w.loan_roi,
         "loan_tenure": w.loan_tenure,
         "loan_counterparty": w.loan_counterparty or "",
         "loan_note": w.loan_note or "",
+    }
+
+
+def _recurring_to_dict(r):
+    wallet_currency = r.wallet.currency if r.wallet else "EUR"
+    symbol = SUPPORTED_CURRENCIES.get(wallet_currency, {}).get("symbol", "€")
+    freq_labels = {
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "3months": "Every 3 Months",
+        "6months": "Every 6 Months",
+        "yearly": "Yearly",
+    }
+    return {
+        "id": r.id,
+        "amount": r.amount,
+        "exchange_rate": r.exchange_rate,
+        "currency": wallet_currency,
+        "symbol": symbol,
+        "type": r.type,
+        "note": r.note,
+        "frequency": r.frequency,
+        "frequency_label": freq_labels.get(r.frequency, r.frequency),
+        "start_date": r.start_date.isoformat(),
+        "end_date": r.end_date.isoformat() if r.end_date else None,
+        "next_date": r.next_date.isoformat(),
+        "active": r.active,
+        "wallet_id": r.wallet_id,
+        "wallet_name": r.wallet.name if r.wallet else "",
+        "category_id": r.category_id,
+        "category_name": r.category.name if r.category else "",
+        "category_icon": r.category.icon if r.category else "",
+        "category_color": r.category.color if r.category else "",
     }

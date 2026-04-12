@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Categories - WalletApp{% endblock %}
+{% block body %}
+<div class="app-shell">
+    {% include "partials/sidebar.html" %}
+    <main class="main-content">
+        <header class="top-bar">
+            <button class="menu-toggle" onclick="toggleSidebar()"><span class="mi">menu</span></button>
+            <h2>Categories</h2>
+        </header>
+
+        <div class="dashboard-grid" style="gap:24px">
+            <!-- Add Category -->
+            <div class="card" style="padding:20px">
+                <h3 style="margin:0 0 16px">Add New Category</h3>
+                <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+                    <div class="form-group" style="flex:1;min-width:160px;margin:0">
+                        <label>Name</label>
+                        <input type="text" id="newCatName" placeholder="Category name">
+                    </div>
+                    <div class="form-group" style="width:130px;margin:0">
+                        <label>Type</label>
+                        <select id="newCatType">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="width:80px;margin:0">
+                        <label>Color</label>
+                        <input type="color" id="newCatColor" value="#607D8B" style="width:100%;height:36px;padding:2px;border:1px solid var(--border);border-radius:8px;cursor:pointer">
+                    </div>
+                    <div class="form-group" style="width:100px;margin:0">
+                        <label>Icon</label>
+                        <input type="text" id="newCatIcon" placeholder="🍔 or emoji" value="📦" maxlength="10">
+                    </div>
+                    <button class="btn btn-primary" onclick="addCategory()" style="height:36px">
+                        <span class="mi" style="font-size:18px;vertical-align:-3px">add</span> Add
+                    </button>
+                </div>
+            </div>
+
+            <!-- Expense Categories -->
+            <div class="card" style="padding:20px">
+                <h3 style="margin:0 0 16px;display:flex;align-items:center;gap:8px">
+                    <span class="mi" style="color:var(--expense)">arrow_downward</span> Expense Categories
+                    <span id="expenseCount" style="font-size:.8rem;color:var(--text-secondary);font-weight:400"></span>
+                </h3>
+                <div id="expenseCatList" class="cat-grid"></div>
+            </div>
+
+            <!-- Income Categories -->
+            <div class="card" style="padding:20px">
+                <h3 style="margin:0 0 16px;display:flex;align-items:center;gap:8px">
+                    <span class="mi" style="color:var(--income)">arrow_upward</span> Income Categories
+                    <span id="incomeCount" style="font-size:.8rem;color:var(--text-secondary);font-weight:400"></span>
+                </h3>
+                <div id="incomeCatList" class="cat-grid"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<style>
+.cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+}
+.cat-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    transition: box-shadow .15s;
+}
+.cat-chip:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+.cat-chip-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+.cat-chip-name {
+    flex: 1;
+    font-weight: 600;
+    font-size: .9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cat-chip-delete {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    transition: color .15s, background .15s;
+}
+.cat-chip-delete:hover {
+    color: var(--expense);
+    background: rgba(239,83,80,.1);
+}
+</style>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='categories.js') }}"></script>
+{% endblock %}

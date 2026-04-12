@@ -48,6 +48,18 @@ def loans():
     return render_template("loans.html")
 
 
+@main_bp.route("/loan/<int:wallet_id>/overview")
+@login_required
+def loan_overview(wallet_id):
+    return render_template("loan_overview.html", wallet_id=wallet_id)
+
+
+@main_bp.route("/categories")
+@login_required
+def categories():
+    return render_template("categories.html")
+
+
 @main_bp.route("/import")
 @login_required
 def import_page():

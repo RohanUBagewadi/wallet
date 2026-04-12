@@ -47,7 +47,7 @@ async function refreshPage() {
     renderWalletBreakdown(stats.wallets_summary || [], stats.total_balance_eur || 0);
 
     // Charts
-    renderLineChart(stats.daily_balance);
+    renderLineChart(stats.daily_balance, stats.daily_income_expense);
     renderDoughnutChart(stats.by_category);
 
     // Recent transactions (last 5)
@@ -62,28 +62,45 @@ async function refreshPage() {
 function renderWalletBreakdown(wallets, totalEur) {
     document.getElementById('totalWealthBadge').textContent = 'Total: ' + fmtEur(totalEur);
 
+    const creditCards = wallets.filter(w => w.is_credit_card);
+    const regularWallets = wallets.filter(w => !w.is_credit_card);
+
     const grid = document.getElementById('walletBreakdownGrid');
-    if (!wallets.length) {
+    if (!regularWallets.length) {
         grid.innerHTML = '<div class="tx-empty" style="padding:24px">No wallets yet.</div>';
-        return;
+    } else {
+        grid.innerHTML = regularWallets.map(w => renderWalletCard(w, totalEur)).join('');
     }
-    grid.innerHTML = wallets.map(w => {
-        const eurPct = totalEur > 0 ? Math.round((w.balance_eur / totalEur) * 100) : 0;
-        const balFmt = w.symbol + Math.abs(w.balance).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-        const eurFmt = w.currency !== 'EUR' ? `<span class="wallet-eur-eq">≈ ${fmtEur(w.balance_eur)}</span>` : '';
-        return `
-        <div class="wallet-mini-card" style="border-left:4px solid ${w.color}">
-            <div class="wallet-mini-icon">${/^[a-z_]+$/.test(w.icon) ? `<span class="mi">${w.icon}</span>` : w.icon}</div>
-            <div class="wallet-mini-info">
-                <div class="wallet-mini-name">${w.name} <span class="tx-currency-badge">${w.currency}</span></div>
-                <div class="wallet-mini-balance">${balFmt} ${eurFmt}</div>
-            </div>
-            <div class="wallet-mini-pct" style="color:${w.color}">${eurPct}%</div>
-        </div>`;
-    }).join('');
+
+    const ccSection = document.getElementById('creditCardSection');
+    const ccGrid = document.getElementById('creditCardGrid');
+    if (creditCards.length) {
+        ccSection.style.display = 'block';
+        const ccTotal = creditCards.reduce((s, w) => s + w.balance_eur, 0);
+        document.getElementById('ccTotalBadge').textContent = 'Total: ' + fmtEur(ccTotal);
+        ccGrid.innerHTML = creditCards.map(w => renderWalletCard(w, totalEur)).join('');
+    } else {
+        ccSection.style.display = 'none';
+    }
 }
 
-function renderLineChart(dailyBalance) {
+function renderWalletCard(w, totalEur) {
+    const eurPct = totalEur > 0 ? Math.round((w.balance_eur / totalEur) * 100) : 0;
+    const sign = w.balance < 0 ? '-' : '';
+    const balFmt = sign + w.symbol + Math.abs(w.balance).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    const eurFmt = w.currency !== 'EUR' ? `<span class="wallet-eur-eq">≈ ${fmtEur(w.balance_eur)}</span>` : '';
+    return `
+    <div class="wallet-mini-card" style="border-left:4px solid ${w.color}">
+        <div class="wallet-mini-icon">${/^[a-z_]+$/.test(w.icon) ? `<span class="mi">${w.icon}</span>` : w.icon}</div>
+        <div class="wallet-mini-info">
+            <div class="wallet-mini-name">${w.name} <span class="tx-currency-badge">${w.currency}</span></div>
+            <div class="wallet-mini-balance">${balFmt} ${eurFmt}</div>
+        </div>
+        <div class="wallet-mini-pct" style="color:${w.color}">${eurPct}%</div>
+    </div>`;
+}
+
+function renderLineChart(dailyBalance, dailyIE) {
     const ctx = document.getElementById('lineChart').getContext('2d');
     if (lineChart) lineChart.destroy();
 
@@ -93,46 +110,96 @@ function renderLineChart(dailyBalance) {
         return;
     }
 
-    const labels = dailyBalance.map(d => {
-        const dt = new Date(d.date + 'T00:00:00');
-        return dt.getDate();
-    });
-    const data = dailyBalance.map(d => d.balance);
+    // Build lookups
+    const balMap = {};
+    dailyBalance.forEach(d => { balMap[d.date] = d.balance; });
+    const incMap = {}, expMap = {};
+    (dailyIE || []).forEach(d => { incMap[d.date] = d.income; expMap[d.date] = d.expense; });
 
-    const isRising = data.length < 2 || data[data.length - 1] >= data[0];
-    const lineColor = isRising ? '#4CAF50' : '#F44336';
-    const fillColor = isRising ? 'rgba(76,175,80,0.10)' : 'rgba(244,67,54,0.10)';
+    // Generate all days in the current month
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+    const labels = [], balData = [], incData = [], expData = [];
+    let lastBal = dailyBalance[0].balance;
+    let cumInc = 0, cumExp = 0;
+    for (let day = 1; day <= daysInMonth; day++) {
+        const key = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        if (balMap[key] !== undefined) lastBal = balMap[key];
+        cumInc += (incMap[key] || 0);
+        cumExp += (expMap[key] || 0);
+        labels.push(day);
+        balData.push(lastBal);
+        incData.push(Math.round(cumInc * 100) / 100);
+        expData.push(-Math.round(cumExp * 100) / 100);
+    }
 
     lineChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels,
-            datasets: [{
-                label: 'Balance (EUR)',
-                data,
-                borderColor: lineColor,
-                backgroundColor: fillColor,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 3,
-                pointBackgroundColor: lineColor,
-                pointHoverRadius: 5,
-            }]
+            datasets: [
+                {
+                    label: 'Balance',
+                    data: balData,
+                    borderColor: '#64B5F6',
+                    backgroundColor: 'rgba(100,181,246,0.08)',
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 2.5,
+                    pointRadius: 0,
+                    pointHitRadius: 8,
+                    pointHoverRadius: 4,
+                    pointHoverBackgroundColor: '#64B5F6',
+                },
+                {
+                    label: 'Income',
+                    data: incData,
+                    borderColor: '#4CAF50',
+                    backgroundColor: 'rgba(76,175,80,0.06)',
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 2,
+                    borderDash: [6, 3],
+                    pointRadius: 0,
+                    pointHitRadius: 8,
+                    pointHoverRadius: 4,
+                    pointHoverBackgroundColor: '#4CAF50',
+                },
+                {
+                    label: 'Expense',
+                    data: expData,
+                    borderColor: '#F44336',
+                    backgroundColor: 'rgba(244,67,54,0.06)',
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 2,
+                    borderDash: [6, 3],
+                    pointRadius: 0,
+                    pointHitRadius: 8,
+                    pointHoverRadius: 4,
+                    pointHoverBackgroundColor: '#F44336',
+                },
+            ]
         },
         options: {
             responsive: true,
+            interaction: { mode: 'index', intersect: false },
             plugins: {
-                legend: { display: false },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: { usePointStyle: true, pointStyle: 'line', boxWidth: 30, padding: 12, font: { size: 11 } }
+                },
                 tooltip: {
                     callbacks: {
-                        label: ctx => '€' + ctx.parsed.y.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        label: ctx => ctx.dataset.label + ': €' + ctx.parsed.y.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                     }
                 }
             },
             scales: {
                 y: {
-                    beginAtZero: false,
-                    ticks: { callback: v => '€' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }) }
+                    position: 'left',
+                    ticks: { callback: v => '€' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }) },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
                 },
                 x: { grid: { display: false } }
             }

@@ -60,10 +60,10 @@ async function loadLoans() {
         const totalInterest  = totalPayable ? totalPayable - principal : null;
 
         return `
-        <div class="budget-card" style="border-left:4px solid var(--expense);cursor:pointer" onclick="window.location.href='/wallet/${l.id}'">
+        <div class="budget-card" style="border-left:4px solid var(--expense)">
             <div class="budget-header">
                 <div style="display:flex;align-items:center;gap:10px">
-                    <span style="font-size:1.5rem">${l.icon}</span>
+                    <span class="mi" style="font-size:1.5rem">${l.icon}</span>
                     <div>
                         <div style="font-weight:700;font-size:.95rem">${escapeHtml(l.name)}</div>
                         ${l.loan_counterparty ? `<div style="font-size:.8rem;color:var(--text-secondary)">${escapeHtml(l.loan_counterparty)}</div>` : ''}
@@ -116,6 +116,15 @@ async function loadLoans() {
             <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:.82rem">
                 ${l.loan_roi ? `<span class="tag-badge">ROI: ${l.loan_roi}% p.a.</span>` : ''}
                 ${l.loan_note ? `<span class="tag-badge">${escapeHtml(l.loan_note)}</span>` : ''}
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:14px">
+                <a href="/loan/${l.id}/overview" class="btn btn-primary btn-sm" style="flex:1;text-align:center;text-decoration:none" onclick="event.stopPropagation()">
+                    <span class="mi" style="font-size:16px;vertical-align:-3px">table_chart</span> See Overview
+                </a>
+                <a href="/wallet/${l.id}" class="btn btn-outline btn-sm" style="flex:1;text-align:center;text-decoration:none" onclick="event.stopPropagation()">
+                    <span class="mi" style="font-size:16px;vertical-align:-3px">receipt_long</span> Transactions
+                </a>
             </div>
         </div>`;
     }).join('');

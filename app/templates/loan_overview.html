@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Loan Overview - WalletApp{% endblock %}
+{% block head %}
+<style>
+    .loan-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .loan-stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; text-align: center; }
+    .loan-stat-label { font-size: .7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .5px; }
+    .loan-stat-value { font-size: 1.1rem; font-weight: 700; margin-top: 4px; }
+    .schedule-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+    .schedule-table { width: 100%; border-collapse: collapse; font-size: .82rem; white-space: nowrap; }
+    .schedule-table th { position: sticky; top: 0; background: var(--surface); color: var(--text-secondary); font-weight: 600; font-size: .7rem; text-transform: uppercase; letter-spacing: .5px; padding: 10px 12px; text-align: right; border-bottom: 2px solid var(--border); }
+    .schedule-table th:first-child, .schedule-table td:first-child { text-align: center; }
+    .schedule-table th:nth-child(2), .schedule-table td:nth-child(2) { text-align: left; }
+    .schedule-table td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+    .schedule-table tr:last-child td { border-bottom: none; }
+    .schedule-table tr:hover { background: var(--surface); }
+    .schedule-table tr.actual-row { background: rgba(76,175,80,.06); }
+    .schedule-table tr.actual-row:hover { background: rgba(76,175,80,.12); }
+    .schedule-table tr.future-row { color: var(--text-secondary); }
+    .extra-badge { color: var(--income); font-weight: 600; }
+</style>
+{% endblock %}
+{% block body %}
+<div class="app-shell">
+    {% include "partials/sidebar.html" %}
+    <main class="main-content">
+        <header class="top-bar">
+            <button class="menu-toggle" onclick="toggleSidebar()"><span class="mi">menu</span></button>
+            <button class="btn btn-outline btn-sm" onclick="history.back()" style="margin-right:8px"><span class="mi">arrow_back</span> Back</button>
+            <div>
+                <h2 id="loanTitle" style="margin:0;font-size:1.1rem">Loading…</h2>
+                <div id="loanSubtitle" style="font-size:.8rem;color:var(--text-secondary);margin-top:1px"></div>
+            </div>
+        </header>
+
+        <div id="loanSummaryCards" class="loan-summary-grid"></div>
+
+        <div class="card" style="padding:0">
+            <div style="padding:16px 16px 0;display:flex;align-items:center;justify-content:space-between">
+                <h3 style="margin:0;font-size:1rem">Amortization Schedule</h3>
+                <div style="font-size:.75rem;color:var(--text-secondary)">
+                    <span style="display:inline-block;width:10px;height:10px;background:rgba(76,175,80,.15);border:1px solid var(--income);border-radius:2px;vertical-align:middle;margin-right:3px"></span> Actual payment
+                </div>
+            </div>
+            <div class="schedule-table-wrap" style="max-height:65vh;overflow-y:auto">
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Payment Date</th>
+                            <th>Beginning Balance</th>
+                            <th>Payment</th>
+                            <th>Extra Payment</th>
+                            <th>Principal</th>
+                            <th>Interest</th>
+                            <th>Ending Balance</th>
+                            <th>Total Interest</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scheduleBody">
+                        <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-secondary)">Loading schedule…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const WALLET_ID = {{ wallet_id }};
+</script>
+<script src="{{ url_for('static', filename='loan_overview.js') }}"></script>
+{% endblock %}

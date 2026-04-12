@@ -32,6 +32,7 @@ function openAddWallet() {
     document.getElementById('walletModalTitle').textContent = 'Add Wallet';
     document.getElementById('walletName').value = '';
     document.getElementById('walletBalance').value = '';
+    document.getElementById('walletIsCreditCard').checked = false;
     document.getElementById('walletIsLoan').checked = false;
     document.getElementById('walletLoanOutstanding').value = '';
     document.getElementById('walletLoanRoi').value = '';
@@ -53,6 +54,7 @@ async function editWallet(id) {
     document.getElementById('walletName').value = w.name;
     document.getElementById('walletBalance').value = w.balance;
     document.getElementById('walletCurrency').value = w.currency || 'EUR';
+    document.getElementById('walletIsCreditCard').checked = !!w.is_credit_card;
     document.getElementById('walletIsLoan').checked = !!w.is_loan;
     document.getElementById('walletLoanOutstanding').value = w.loan_outstanding || '';
     document.getElementById('walletLoanRoi').value = w.loan_roi || '';
@@ -73,6 +75,7 @@ async function saveWallet() {
     const selectedIcon = document.querySelector('#walletIconSelector .icon-option.selected');
     const selectedColor = document.querySelector('#walletColorSelector .color-option.selected');
 
+    const isCreditCard = document.getElementById('walletIsCreditCard').checked;
     const isLoan = document.getElementById('walletIsLoan').checked;
     const loanOutstanding = parseFloat(document.getElementById('walletLoanOutstanding').value) || 0;
     const loanTenure = parseInt(document.getElementById('walletLoanTenure').value) || null;
@@ -92,6 +95,7 @@ async function saveWallet() {
         currency: document.getElementById('walletCurrency').value || 'EUR',
         icon: selectedIcon ? selectedIcon.dataset.icon : 'credit_card',
         color: selectedColor ? selectedColor.dataset.color : '#4CAF50',
+        is_credit_card: isCreditCard,
         is_loan: isLoan,
         loan_outstanding: isLoan ? loanOutstanding : null,
         loan_roi: isLoan ? loanRoi : null,

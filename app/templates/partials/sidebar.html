@@ -10,6 +10,7 @@
         <li><a href="{{ url_for('main.wallets') }}" class="{% if request.endpoint == 'main.wallets' %}active{% endif %}"><span class="mi">account_balance_wallet</span> Wallets</a></li>
         <li><a href="{{ url_for('main.statistics') }}" class="{% if request.endpoint == 'main.statistics' %}active{% endif %}"><span class="mi">analytics</span> Statistics</a></li>
         <li><a href="{{ url_for('main.loans') }}" class="{% if request.endpoint == 'main.loans' %}active{% endif %}"><span class="mi">handshake</span> Loans</a></li>
+        <li><a href="{{ url_for('main.categories') }}" class="{% if request.endpoint == 'main.categories' %}active{% endif %}"><span class="mi">category</span> Categories</a></li>
         <li><a href="{{ url_for('main.import_page') }}" class="{% if request.endpoint == 'main.import_page' %}active{% endif %}"><span class="mi">upload_file</span> Import</a></li>
     </ul>
     <div class="sidebar-footer">

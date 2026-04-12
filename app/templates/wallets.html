@@ -60,12 +60,20 @@
                         <span class="color-option" data-color="#607D8B" style="background:#607D8B"></span>
                     </div>
                 </div>
-                <!-- Loan section -->
-                <div class="form-group">
-                    <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-                        <input type="checkbox" id="walletIsLoan" onchange="toggleLoanFields(this.checked)" style="width:18px;height:18px;cursor:pointer">
-                        <span class="mi" style="font-size:18px">account_balance</span> Mark as Loan Account
-                    </label>
+                <!-- Credit card & Loan toggles -->
+                <div style="display:flex;gap:24px;flex-wrap:wrap">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+                            <input type="checkbox" id="walletIsCreditCard" style="width:18px;height:18px;cursor:pointer">
+                            <span class="mi" style="font-size:18px">credit_card</span> Credit Card
+                        </label>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+                            <input type="checkbox" id="walletIsLoan" onchange="toggleLoanFields(this.checked)" style="width:18px;height:18px;cursor:pointer">
+                            <span class="mi" style="font-size:18px">account_balance</span> Loan Account
+                        </label>
+                    </div>
                 </div>
                 <div id="loanFields" style="display:none">
                     <div class="form-group">

@@ -9,14 +9,26 @@
             <h2>Import Transactions</h2>
         </header>
 
+        <!-- Step Indicator -->
+        <div class="import-steps-indicator">
+            <div class="step-dot active" id="stepDot1"><span class="mi">upload_file</span><small>Upload</small></div>
+            <div class="step-line" id="stepLine1"></div>
+            <div class="step-dot" id="stepDot2"><span class="mi">tune</span><small>Map</small></div>
+            <div class="step-line" id="stepLine2"></div>
+            <div class="step-dot" id="stepDot3"><span class="mi">check_circle</span><small>Done</small></div>
+        </div>
+
         <!-- Step 1: Upload -->
         <div id="importStep1" class="import-step">
             <div class="card import-upload-card">
+                <div class="upload-hero-icon"><span class="mi">cloud_upload</span></div>
                 <h3>Upload CSV File</h3>
-                <p class="import-hint">Upload a CSV file from your bank or any spreadsheet export. You'll map the columns in the next step.</p>
+                <p class="import-hint">Upload a CSV file from your bank or spreadsheet. You'll map the columns in the next step.</p>
                 <label class="import-dropzone" id="dropzone">
-                    <span class="dropzone-icon"><span class="mi" style="font-size:48px;color:var(--primary)">upload_file</span></span>
-                    <span class="dropzone-text">Click to select or drag & drop a .csv file</span>
+                    <span class="dropzone-icon"><span class="mi">description</span></span>
+                    <span class="dropzone-text-main">Drag & drop your CSV file here</span>
+                    <span class="dropzone-text-sub">or click to browse</span>
+                    <span class="dropzone-formats">Supports: .csv files up to 100 rows</span>
                     <input type="file" id="csvFile" accept=".csv" style="display:none">
                 </label>
             </div>
@@ -24,111 +36,140 @@
 
         <!-- Step 2: Preview + Mapping -->
         <div id="importStep2" class="import-step" style="display:none">
-            <div class="card">
+            <div class="card" style="padding:24px">
                 <div class="import-step2-header">
-                    <h3>Map Columns</h3>
-                    <button class="btn btn-outline btn-sm" onclick="resetImport()">← Change File</button>
-                </div>
-                <p class="import-hint">Select which CSV column corresponds to each field. <strong>Date</strong> and <strong>Amount</strong> are required.</p>
-
-                <!-- Date Format -->
-                <div class="import-config-row">
-                    <label>Date Format in your file:</label>
-                    <select id="dateFormat">
-                        <option value="%Y-%m-%d">YYYY-MM-DD (2026-04-12)</option>
-                        <option value="%d/%m/%Y">DD/MM/YYYY (12/04/2026)</option>
-                        <option value="%m/%d/%Y">MM/DD/YYYY (04/12/2026)</option>
-                        <option value="%d-%m-%Y">DD-MM-YYYY (12-04-2026)</option>
-                        <option value="%m-%d-%Y">MM-DD-YYYY (04-12-2026)</option>
-                        <option value="%d.%m.%Y">DD.MM.YYYY (12.04.2026)</option>
-                        <option value="%Y/%m/%d">YYYY/MM/DD (2026/04/12)</option>
-                        <option value="%b %d, %Y">Mon DD, YYYY (Apr 12, 2026)</option>
-                        <option value="%d %b %Y">DD Mon YYYY (12 Apr 2026)</option>
-                        <option value="%d %B %Y">DD Month YYYY (12 April 2026)</option>
-                    </select>
-                    <span id="datePreviewBadge" class="import-date-preview"></span>
+                    <div>
+                        <h3 style="margin:0">Map Columns</h3>
+                        <p class="import-hint" style="margin:4px 0 0">Match your CSV columns to the right fields. <strong>Date</strong> and <strong>Amount</strong> are required.</p>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="resetImport()"><span class="mi" style="font-size:16px;vertical-align:-3px">arrow_back</span> Change File</button>
                 </div>
 
-                <!-- Default Type & Wallet -->
-                <div class="import-config-row">
-                    <label>Default Type (if no column mapped):</label>
-                    <select id="defaultType">
-                        <option value="expense">Expense</option>
-                        <option value="income">Income</option>
-                    </select>
-                </div>
-                <div class="import-config-row">
-                    <label>Default Wallet:</label>
-                    <select id="defaultWallet"></select>
+                <!-- File info badge -->
+                <div class="import-file-badge" id="fileBadge">
+                    <span class="mi" style="color:var(--primary)">description</span>
+                    <span id="fileName"></span>
+                    <span class="file-meta" id="fileMeta"></span>
                 </div>
 
-                <!-- Column Mapping Table -->
+                <!-- Config Section -->
+                <div class="import-config-section">
+                    <div class="import-config-card">
+                        <label><span class="mi" style="font-size:16px;vertical-align:-3px;color:var(--primary)">calendar_today</span> Date Format</label>
+                        <select id="dateFormat">
+                            <option value="%Y-%m-%d">YYYY-MM-DD (2026-04-12)</option>
+                            <option value="%d/%m/%Y">DD/MM/YYYY (12/04/2026)</option>
+                            <option value="%m/%d/%Y">MM/DD/YYYY (04/12/2026)</option>
+                            <option value="%d-%m-%Y">DD-MM-YYYY (12-04-2026)</option>
+                            <option value="%m-%d-%Y">MM-DD-YYYY (04-12-2026)</option>
+                            <option value="%d.%m.%Y">DD.MM.YYYY (12.04.2026)</option>
+                            <option value="%Y/%m/%d">YYYY/MM/DD (2026/04/12)</option>
+                            <option value="%b %d, %Y">Mon DD, YYYY (Apr 12, 2026)</option>
+                            <option value="%d %b %Y">DD Mon YYYY (12 Apr 2026)</option>
+                            <option value="%d %B %Y">DD Month YYYY (12 April 2026)</option>
+                        </select>
+                        <span id="datePreviewBadge" class="import-date-preview"></span>
+                    </div>
+                    <div class="import-config-card">
+                        <label><span class="mi" style="font-size:16px;vertical-align:-3px;color:var(--primary)">swap_vert</span> Default Type</label>
+                        <select id="defaultType">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                    <div class="import-config-card">
+                        <label><span class="mi" style="font-size:16px;vertical-align:-3px;color:var(--primary)">account_balance_wallet</span> Default Wallet</label>
+                        <select id="defaultWallet"></select>
+                    </div>
+                </div>
+
+                <!-- Column Mapping -->
+                <h4 style="margin:20px 0 12px;display:flex;align-items:center;gap:6px">
+                    <span class="mi" style="font-size:18px;color:var(--primary)">link</span> Column Mapping
+                </h4>
                 <div class="import-mapping-grid">
                     <div class="mapping-row mapping-header">
                         <span>Field</span>
                         <span>CSV Column</span>
-                        <span>Sample Values</span>
+                        <span>Sample</span>
                     </div>
                     <div class="mapping-row" data-field="col_date">
-                        <span class="field-name">Date <span class="required">*</span></span>
+                        <span class="field-name"><span class="mi field-icon">calendar_today</span> Date <span class="required">*</span></span>
                         <select class="col-select" data-field="col_date"></select>
                         <span class="sample-values" data-field="col_date"></span>
                     </div>
                     <div class="mapping-row" data-field="col_amount">
-                        <span class="field-name">Amount <span class="required">*</span></span>
+                        <span class="field-name"><span class="mi field-icon">payments</span> Amount <span class="required">*</span></span>
                         <select class="col-select" data-field="col_amount"></select>
                         <span class="sample-values" data-field="col_amount"></span>
                     </div>
                     <div class="mapping-row" data-field="col_type">
-                        <span class="field-name">Type</span>
+                        <span class="field-name"><span class="mi field-icon">swap_vert</span> Type</span>
                         <select class="col-select" data-field="col_type"></select>
                         <span class="sample-values" data-field="col_type"></span>
                     </div>
                     <div class="mapping-row" data-field="col_category">
-                        <span class="field-name">Category</span>
+                        <span class="field-name"><span class="mi field-icon">category</span> Category</span>
                         <select class="col-select" data-field="col_category"></select>
                         <span class="sample-values" data-field="col_category"></span>
                     </div>
                     <div class="mapping-row" data-field="col_wallet">
-                        <span class="field-name">Wallet</span>
+                        <span class="field-name"><span class="mi field-icon">account_balance_wallet</span> Wallet</span>
                         <select class="col-select" data-field="col_wallet"></select>
                         <span class="sample-values" data-field="col_wallet"></span>
                     </div>
                     <div class="mapping-row" data-field="col_currency">
-                        <span class="field-name">Currency</span>
+                        <span class="field-name"><span class="mi field-icon">currency_exchange</span> Currency</span>
                         <select class="col-select" data-field="col_currency"></select>
                         <span class="sample-values" data-field="col_currency"></span>
                     </div>
                     <div class="mapping-row" data-field="col_note">
-                        <span class="field-name">Note</span>
+                        <span class="field-name"><span class="mi field-icon">notes</span> Note</span>
                         <select class="col-select" data-field="col_note"></select>
                         <span class="sample-values" data-field="col_note"></span>
                     </div>
                     <div class="mapping-row" data-field="col_exchange_rate">
-                        <span class="field-name">Exchange Rate</span>
+                        <span class="field-name"><span class="mi field-icon">sync_alt</span> Exchange Rate</span>
                         <select class="col-select" data-field="col_exchange_rate"></select>
                         <span class="sample-values" data-field="col_exchange_rate"></span>
                     </div>
                     <div class="mapping-row" data-field="col_amount_eur">
-                        <span class="field-name">Amount (EUR)</span>
+                        <span class="field-name"><span class="mi field-icon">euro</span> Amount (EUR)</span>
                         <select class="col-select" data-field="col_amount_eur"></select>
                         <span class="sample-values" data-field="col_amount_eur"></span>
                     </div>
                     <div class="mapping-row" data-field="col_labels">
-                        <span class="field-name">Labels</span>
+                        <span class="field-name"><span class="mi field-icon">label</span> Labels</span>
                         <select class="col-select" data-field="col_labels"></select>
                         <span class="sample-values" data-field="col_labels"></span>
                     </div>
                 </div>
 
                 <!-- Preview Table -->
-                <h4 style="margin-top:18px">Preview (first 5 rows)</h4>
+                <h4 style="margin:20px 0 8px;display:flex;align-items:center;gap:6px">
+                    <span class="mi" style="font-size:18px;color:var(--primary)">preview</span> Preview (first 5 rows)
+                </h4>
                 <div class="import-preview-wrap">
                     <table class="import-preview-table" id="previewTable"></table>
                 </div>
 
                 <div class="import-actions">
-                    <button class="btn btn-primary" id="importBtn" onclick="executeImport()">Import Transactions</button>
+                    <button class="btn btn-outline" onclick="resetImport()">Cancel</button>
+                    <button class="btn btn-primary" id="importBtn" onclick="executeImport()">
+                        <span class="mi" style="font-size:18px;vertical-align:-3px">download</span> Import Transactions
+                    </button>
+                </div>
+
+                <!-- Import Info -->
+                <div class="import-info-box">
+                    <h4><span class="mi" style="font-size:18px;vertical-align:-3px">info</span> How Import Works</h4>
+                    <ul>
+                        <li><strong>Type:</strong> If mapped, values like <em>income, credit, cr</em> → Income; <em>expense, debit, dr</em> → Expense. If not mapped, the sign of the amount is used (negative → expense, positive → income), or the Default Type is applied.</li>
+                        <li><strong>Category:</strong> Matched by name (partial matching supported, e.g. "food" matches "Food &amp; Drinks"). If no match is found, it falls back to "Others" — creating it automatically if needed.</li>
+                        <li><strong>Wallet:</strong> Matched by name or currency. If no match, the Default Wallet is used.</li>
+                        <li><strong>Labels:</strong> Comma-separated values. Labels that don't exist will be created automatically.</li>
+                        <li><strong>Exchange Rate:</strong> Used to convert the amount to EUR. Defaults to 1.0 if not provided.</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -136,12 +177,13 @@
         <!-- Step 3: Results -->
         <div id="importStep3" class="import-step" style="display:none">
             <div class="card import-result-card">
+                <div id="resultIcon" class="result-hero-icon"></div>
                 <h3 id="resultTitle"></h3>
                 <p id="resultSummary"></p>
                 <div id="resultErrors" class="import-errors" style="display:none"></div>
                 <div class="import-actions">
-                    <button class="btn btn-primary" onclick="resetImport()">Import Another File</button>
-                    <a href="{{ url_for('main.transactions') }}" class="btn btn-outline">View Transactions</a>
+                    <button class="btn btn-outline" onclick="resetImport()"><span class="mi" style="font-size:16px;vertical-align:-3px">refresh</span> Import Another</button>
+                    <a href="{{ url_for('main.transactions') }}" class="btn btn-primary" style="text-decoration:none"><span class="mi" style="font-size:16px;vertical-align:-3px">receipt_long</span> View Transactions</a>
                 </div>
             </div>
         </div>

@@ -365,6 +365,18 @@ function showStep2() {
     document.getElementById("importStep1").style.display = "none";
     document.getElementById("importStep2").style.display = "block";
     document.getElementById("importStep3").style.display = "none";
+    // Update step indicator
+    document.getElementById("stepDot1").className = "step-dot done";
+    document.getElementById("stepLine1").className = "step-line done";
+    document.getElementById("stepDot2").className = "step-dot active";
+    document.getElementById("stepDot3").className = "step-dot";
+    document.getElementById("stepLine2").className = "step-line";
+    // Show file info
+    if (csvFile) {
+        document.getElementById("fileName").textContent = csvFile.name;
+        const size = csvFile.size < 1024 ? csvFile.size + ' B' : (csvFile.size / 1024).toFixed(1) + ' KB';
+        document.getElementById("fileMeta").textContent = `${size} · ${csvRows.length} rows · ${csvHeaders.length} columns`;
+    }
 }
 
 function resetImport() {
@@ -375,6 +387,12 @@ function resetImport() {
     document.getElementById("importStep1").style.display = "block";
     document.getElementById("importStep2").style.display = "none";
     document.getElementById("importStep3").style.display = "none";
+    // Reset step indicator
+    document.getElementById("stepDot1").className = "step-dot active";
+    document.getElementById("stepLine1").className = "step-line";
+    document.getElementById("stepDot2").className = "step-dot";
+    document.getElementById("stepLine2").className = "step-line";
+    document.getElementById("stepDot3").className = "step-dot";
 }
 
 async function executeImport() {
@@ -436,17 +454,26 @@ function showStep3(result) {
     document.getElementById("importStep1").style.display = "none";
     document.getElementById("importStep2").style.display = "none";
     document.getElementById("importStep3").style.display = "block";
+    // Update step indicator
+    document.getElementById("stepDot1").className = "step-dot done";
+    document.getElementById("stepLine1").className = "step-line done";
+    document.getElementById("stepDot2").className = "step-dot done";
+    document.getElementById("stepLine2").className = "step-line done";
+    document.getElementById("stepDot3").className = "step-dot active";
 
     const title = document.getElementById("resultTitle");
     const summary = document.getElementById("resultSummary");
     const errorsDiv = document.getElementById("resultErrors");
+    const iconDiv = document.getElementById("resultIcon");
 
     if (result.imported > 0) {
         title.textContent = "Import Successful!";
         title.style.color = "#4CAF50";
+        iconDiv.innerHTML = '<span class="mi" style="color:#4CAF50">check_circle</span>';
     } else {
         title.textContent = "Import Failed";
         title.style.color = "#F44336";
+        iconDiv.innerHTML = '<span class="mi" style="color:#F44336">error</span>';
     }
 
     summary.textContent = `${result.imported} transaction${result.imported !== 1 ? "s" : ""} imported.`;

@@ -17,12 +17,23 @@ function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 function openAddModal() {
     document.getElementById('editTxId').value = '';
+    document.getElementById('editTransferId').value = '';
     document.getElementById('txModalTitle').textContent = 'Add Transaction';
     document.getElementById('txAmount').value = '';
     document.getElementById('txFromAmount').value = '';
     document.getElementById('txNote').value = '';
     document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
     window._selectedLabelIds = [];
+    // Reset recurring fields
+    const recurToggle = document.getElementById('txRecurringToggle');
+    if (recurToggle) { recurToggle.checked = false; toggleRecurringFields(); }
+    const recurEnd = document.getElementById('txRecurringEndDate');
+    if (recurEnd) recurEnd.value = '';
+    const recurFreq = document.getElementById('txRecurringFrequency');
+    if (recurFreq) recurFreq.value = 'monthly';
+    // Reset EMI extra payment checkbox
+    const emiExtra = document.getElementById('txEmiExtraPayment');
+    if (emiExtra) emiExtra.checked = false;
     setTxType('expense');
     loadModalDropdowns();
     openModal('addTransactionModal');
@@ -38,12 +49,15 @@ function setTxType(type) {
     document.getElementById('txRegularFields').style.display = isRegular ? 'block' : 'none';
     document.getElementById('txTransferFields').style.display = isTransfer ? 'block' : 'none';
     document.getElementById('txEmiFields').style.display = isEmi ? 'block' : 'none';
+    // Show recurring option only for regular transactions (not transfer/emi)
+    const recurGroup = document.getElementById('txRecurringGroup');
+    if (recurGroup) recurGroup.style.display = isRegular ? 'block' : 'none';
     // Filter categories by type (only for regular)
     if (isRegular) {
         const sel = document.getElementById('txCategory');
         if (sel && window._allCategories) {
             const filtered = window._allCategories.filter(c => c.type === type);
-            sel.innerHTML = filtered.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+            sel.innerHTML = filtered.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
         }
     }
 }
@@ -51,6 +65,11 @@ function setTxType(type) {
 function getCurrentTxType() {
     const active = document.querySelector('.tx-type-btn.active');
     return active ? active.dataset.type : 'expense';
+}
+
+function toggleRecurringFields() {
+    const checked = document.getElementById('txRecurringToggle').checked;
+    document.getElementById('txRecurringFields').style.display = checked ? 'block' : 'none';
 }
 
 async function loadModalDropdowns() {
@@ -62,7 +81,7 @@ async function loadModalDropdowns() {
     setTxType(getCurrentTxType());
 
     const walletOpts = wallets.map(w =>
-        `<option value="${w.id}" data-currency="${w.currency}" data-symbol="${w.symbol}">${w.icon} ${w.name} (${w.currency})</option>`
+        `<option value="${w.id}" data-currency="${w.currency}" data-symbol="${w.symbol}">${w.name} (${w.currency})</option>`
     ).join('');
 
     const wSel = document.getElementById('txWallet');
@@ -76,9 +95,9 @@ async function loadModalDropdowns() {
 
     // EMI dropdowns: from = normal wallets, loan = loan wallets
     const normalOpts = wallets.filter(w => !w.is_loan).map(w =>
-        `<option value="${w.id}">${w.icon} ${w.name} (${w.currency})</option>`).join('');
+        `<option value="${w.id}">${w.name} (${w.currency})</option>`).join('');
     const loanOpts = wallets.filter(w => w.is_loan).map(w =>
-        `<option value="${w.id}">${w.icon} ${w.name} (${w.currency})</option>`).join('');
+        `<option value="${w.id}">${w.name} (${w.currency})</option>`).join('');
     const emiFromSel = document.getElementById('txEmiFromWallet');
     const emiLoanSel = document.getElementById('txEmiLoanWallet');
     if (emiFromSel) emiFromSel.innerHTML = normalOpts || walletOpts;
@@ -108,6 +127,7 @@ async function saveTransaction() {
     const txType = getCurrentTxType();
 
     if (txType === 'transfer') {
+        const editTransferId = document.getElementById('editTransferId').value;
         const fromWalletId = parseInt(document.getElementById('txFromWallet').value);
         const toWalletId = parseInt(document.getElementById('txToWallet').value);
         const fromAmount = parseFloat(document.getElementById('txFromAmount').value);
@@ -122,17 +142,24 @@ async function saveTransaction() {
             date: document.getElementById('txDate').value,
             note: document.getElementById('txNote').value,
         };
-        await api('/api/transfers', 'POST', payload);
+        if (editTransferId) {
+            await api(`/api/transfers/${editTransferId}`, 'PUT', payload);
+            showToast('Transfer updated');
+        } else {
+            await api('/api/transfers', 'POST', payload);
+            showToast('Transfer saved');
+        }
         closeModal('addTransactionModal');
-        showToast('Transfer saved');
         if (typeof refreshPage === 'function') refreshPage();
         return;
     }
 
     if (txType === 'emi') {
+        const editTransferId = document.getElementById('editTransferId').value;
         const fromWalletId = parseInt(document.getElementById('txEmiFromWallet').value);
         const loanWalletId = parseInt(document.getElementById('txEmiLoanWallet').value);
         const amount = parseFloat(document.getElementById('txEmiAmount').value);
+        const isExtra = document.getElementById('txEmiExtraPayment').checked;
         if (!amount || amount <= 0) { showToast('Enter a valid EMI amount'); return; }
         if (!loanWalletId) { showToast('Select a loan account'); return; }
         const payload = {
@@ -141,11 +168,17 @@ async function saveTransaction() {
             from_amount: amount,
             exchange_rate: 1.0,
             date: document.getElementById('txDate').value,
-            note: document.getElementById('txNote').value || 'EMI Payment',
+            note: document.getElementById('txNote').value || (isExtra ? 'Extra Payment' : 'EMI Payment'),
+            is_extra_payment: isExtra,
         };
-        await api('/api/transfers', 'POST', payload);
+        if (editTransferId) {
+            await api(`/api/transfers/${editTransferId}`, 'PUT', payload);
+            showToast('Transfer updated');
+        } else {
+            await api('/api/transfers', 'POST', payload);
+            showToast(isExtra ? 'Extra payment recorded' : 'EMI payment recorded');
+        }
         closeModal('addTransactionModal');
-        showToast('EMI payment recorded');
         if (typeof refreshPage === 'function') refreshPage();
         return;
     }
@@ -162,6 +195,28 @@ async function saveTransaction() {
     };
 
     if (!payload.amount || payload.amount <= 0) { showToast('Enter a valid amount'); return; }
+
+    // Check if recurring
+    const isRecurring = document.getElementById('txRecurringToggle') && document.getElementById('txRecurringToggle').checked && !editId;
+
+    if (isRecurring) {
+        const recurPayload = {
+            amount: payload.amount,
+            type: payload.type,
+            category_id: payload.category_id,
+            wallet_id: payload.wallet_id,
+            exchange_rate: payload.exchange_rate,
+            note: payload.note,
+            frequency: document.getElementById('txRecurringFrequency').value,
+            start_date: payload.date,
+            end_date: document.getElementById('txRecurringEndDate').value || null,
+        };
+        await api('/api/recurring', 'POST', recurPayload);
+        closeModal('addTransactionModal');
+        showToast('Recurring transaction created');
+        if (typeof refreshPage === 'function') refreshPage();
+        return;
+    }
 
     if (editId) {
         await api(`/api/transactions/${editId}`, 'PUT', payload);
@@ -280,6 +335,32 @@ async function createLabel() {
     renderLabelChips(window._allLabels, window._selectedLabelIds || []);
 }
 
+async function editTransfer(id) {
+    const transfers = await api('/api/transfers');
+    const tr = transfers.find(t => t.id === id);
+    if (!tr) return;
+    await loadModalDropdowns();
+    document.getElementById('editTxId').value = '';
+    document.getElementById('editTransferId').value = tr.id;
+    document.getElementById('txModalTitle').textContent = 'Edit Transfer';
+    setTxType(tr.is_extra_payment ? 'emi' : 'transfer');
+    if (tr.is_extra_payment) {
+        document.getElementById('txEmiFromWallet').value = tr.from_wallet_id;
+        document.getElementById('txEmiLoanWallet').value = tr.to_wallet_id;
+        document.getElementById('txEmiAmount').value = tr.from_amount;
+        document.getElementById('txEmiExtraPayment').checked = tr.is_extra_payment;
+    } else {
+        document.getElementById('txFromWallet').value = tr.from_wallet_id;
+        document.getElementById('txToWallet').value = tr.to_wallet_id;
+        document.getElementById('txFromAmount').value = tr.from_amount;
+        document.getElementById('txTransferRate').value = tr.exchange_rate;
+        updateTransferRate();
+    }
+    document.getElementById('txDate').value = tr.date;
+    document.getElementById('txNote').value = tr.note || '';
+    openModal('addTransactionModal');
+}
+
 async function deleteTransfer(id) {
     if (!confirm('Delete this transfer?')) return;
     await api(`/api/transfers/${id}`, 'DELETE');
@@ -290,7 +371,7 @@ async function deleteTransfer(id) {
 // Render a transfer item
 function renderTransferItem(tr, showActions = false) {
     return `
-    <div class="tx-item${showActions ? '' : ' no-actions'}" ondblclick="deleteTransfer(${tr.id})">
+    <div class="tx-item${showActions ? '' : ' no-actions'}" ondblclick="editTransfer(${tr.id})">
         <div class="tx-icon" style="background:rgba(66,165,245,.12);color:#42A5F5"><span class="mi">swap_horiz</span></div>
         <div class="tx-col tx-col-wallet">${tr.from_wallet_name}</div>
         <div class="tx-col tx-col-cat">Transfer</div>
@@ -299,7 +380,7 @@ function renderTransferItem(tr, showActions = false) {
         <div class="tx-col tx-col-amount transfer">-${fmt(tr.from_amount, tr.from_symbol)}</div>
         <div class="tx-col tx-col-currency">${tr.from_currency}</div>
         ${showActions ? `
-        <button class="tx-action-btn" onclick="event.stopPropagation();deleteTransfer(${tr.id})" title="Edit"><span class="mi">edit</span></button>
+        <button class="tx-action-btn" onclick="event.stopPropagation();editTransfer(${tr.id})" title="Edit"><span class="mi">edit</span></button>
         <button class="tx-action-btn" onclick="event.stopPropagation();deleteTransfer(${tr.id})" title="Delete"><span class="mi">delete</span></button>
         ` : ''}
     </div>`;
@@ -316,7 +397,8 @@ async function api(url, method = 'GET', body = null) {
 
 // Format currency — pass symbol for wallet-specific, default to EUR
 function fmt(amount, symbol = '€') {
-    return symbol + Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    const sign = amount < 0 ? '-' : '';
+    return sign + symbol + Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 function fmtEur(amount) { return fmt(amount, '€'); }
 

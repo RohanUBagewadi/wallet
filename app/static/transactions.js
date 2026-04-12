@@ -7,9 +7,9 @@ let currentItems = []; // store last loaded items for re-render
 async function loadFilterDropdowns() {
     const [cats, wallets, labels] = await Promise.all([api('/api/categories'), api('/api/wallets'), api('/api/labels')]);
     const wSel = document.getElementById('filterWallet');
-    wSel.innerHTML = '<option value="">All Wallets</option>' + wallets.map(w => `<option value="${w.id}">${w.icon} ${w.name}</option>`).join('');
+    wSel.innerHTML = '<option value="">All Wallets</option>' + wallets.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
     const cSel = document.getElementById('filterCategory');
-    cSel.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+    cSel.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     const lSel = document.getElementById('filterLabel');
     lSel.innerHTML = '<option value="">All Labels</option>' + labels.map(l =>
         `<option value="${l.id}" style="color:${l.color}">${l.name}</option>`
@@ -87,6 +87,56 @@ function renderTransactionList(items, container) {
 
 function refreshPage() {
     loadTransactions();
+    loadRecurring();
+}
+
+// --- Recurring Transactions ---
+async function loadRecurring() {
+    const container = document.getElementById('recurringList');
+    if (!container) return;
+    const recs = await api('/api/recurring');
+    if (!recs || recs.length === 0) {
+        container.innerHTML = '<div style="padding:12px;color:var(--text-secondary)">No recurring transactions set up.</div>';
+        return;
+    }
+    container.innerHTML = recs.map(r => {
+        const statusBadge = r.active
+            ? '<span style="color:#4CAF50;font-size:.75rem">● Active</span>'
+            : '<span style="color:#9E9E9E;font-size:.75rem">● Paused</span>';
+        const color = r.type === 'income' ? 'var(--income)' : 'var(--expense)';
+        const sign = r.type === 'income' ? '+' : '-';
+        return `<div class="recurring-item" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border)">
+            <div style="flex:1">
+                <div style="font-weight:600">${r.category_icon} ${r.category_name}</div>
+                <div style="font-size:.8rem;color:var(--text-secondary)">${r.frequency_label} · ${r.wallet_name}${r.note ? ' · ' + r.note : ''}</div>
+                <div style="font-size:.75rem;color:var(--text-secondary)">Next: ${r.next_date}${r.end_date ? ' · Ends: ' + r.end_date : ''}</div>
+            </div>
+            <div style="text-align:right">
+                <div style="font-weight:600;color:${color}">${sign}${r.symbol}${r.amount.toLocaleString('en-US', {minimumFractionDigits:2})}</div>
+                ${statusBadge}
+            </div>
+            <div style="display:flex;gap:4px">
+                <button class="btn btn-outline btn-sm" onclick="toggleRecurring(${r.id})" title="${r.active ? 'Pause' : 'Resume'}">
+                    <span class="mi" style="font-size:16px">${r.active ? 'pause' : 'play_arrow'}</span>
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="deleteRecurring(${r.id})" title="Delete">
+                    <span class="mi" style="font-size:16px">delete</span>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function toggleRecurring(id) {
+    await api(`/api/recurring/${id}/toggle`, 'POST');
+    loadRecurring();
+}
+
+async function deleteRecurring(id) {
+    if (!confirm('Delete this recurring transaction?')) return;
+    await api(`/api/recurring/${id}`, 'DELETE');
+    showToast('Recurring transaction deleted');
+    loadRecurring();
 }
 
 // --- CSV Export ---
@@ -201,3 +251,4 @@ async function deleteSelected() {
 // Init
 loadFilterDropdowns();
 loadTransactions();
+loadRecurring();

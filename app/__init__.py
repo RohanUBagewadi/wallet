@@ -33,6 +33,19 @@ def create_app():
         db.create_all()
         _migrate_db()
         _seed_default_categories()
+        # Process any due recurring transactions at startup
+        from app.routes.api import process_recurring_transactions
+        process_recurring_transactions()
+
+    @app.before_request
+    def _check_recurring():
+        """Process recurring transactions once per day per app instance."""
+        from datetime import date as _date
+        today = _date.today()
+        if getattr(app, '_last_recurring_check', None) != today:
+            app._last_recurring_check = today
+            from app.routes.api import process_recurring_transactions
+            process_recurring_transactions()
 
     return app
 
@@ -47,6 +60,8 @@ def _migrate_db():
         ("wallet", "loan_outstanding", "REAL"),
         ("wallet", "loan_roi", "REAL"),
         ("wallet", "loan_tenure", "INTEGER"),
+        ("transfer", "is_extra_payment", "BOOLEAN DEFAULT 0"),
+        ("wallet", "is_credit_card", "BOOLEAN DEFAULT 0"),
     ]
     with db.engine.connect() as conn:
         for table, col, defn in cols:

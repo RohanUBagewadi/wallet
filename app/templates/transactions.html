@@ -46,6 +46,14 @@
 
         <div id="transactionsList" class="transaction-list full-list"></div>
 
+        <!-- Recurring Transactions Section -->
+        <details class="recurring-section" style="margin-top:24px">
+            <summary style="cursor:pointer;font-weight:600;font-size:1rem;padding:12px 0;color:var(--text-primary)">
+                <span class="mi" style="font-size:18px;vertical-align:middle">repeat</span> Recurring Transactions
+            </summary>
+            <div id="recurringList" class="recurring-list"></div>
+        </details>
+
         {% include "partials/add_transaction_modal.html" %}
     </main>
 </div>
