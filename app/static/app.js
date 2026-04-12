@@ -289,24 +289,19 @@ async function deleteTransfer(id) {
 
 // Render a transfer item
 function renderTransferItem(tr, showActions = false) {
-    const rateNote = tr.from_currency !== tr.to_currency
-        ? `<span class="tx-eur">@ 1 ${tr.from_currency} = ${tr.exchange_rate} ${tr.to_currency}</span>` : '';
     return `
-    <div class="tx-item tx-transfer" ondblclick="deleteTransfer(${tr.id})">
-        <div class="tx-icon" style="background:#E3F2FD;color:#1565C0">↔</div>
-        <div class="tx-details">
-            <div class="tx-cat">Transfer</div>
-            <div class="tx-note">${tr.from_wallet_name} → ${tr.to_wallet_name} ${rateNote}</div>
-            ${tr.note ? `<div class="tx-note" style="color:var(--text-secondary)">${tr.note}</div>` : ''}
-        </div>
-        <div class="tx-right">
-            <div class="tx-amount transfer">${tr.from_symbol}${Math.abs(tr.from_amount).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2})} → ${tr.to_symbol}${Math.abs(tr.to_amount).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2})}</div>
-            <div class="tx-date">${formatDate(tr.date)}</div>
-        </div>
+    <div class="tx-item${showActions ? '' : ' no-actions'}" ondblclick="deleteTransfer(${tr.id})">
+        <div class="tx-icon" style="background:rgba(66,165,245,.12);color:#42A5F5"><span class="mi">swap_horiz</span></div>
+        <div class="tx-col tx-col-wallet">${tr.from_wallet_name}</div>
+        <div class="tx-col tx-col-cat">Transfer</div>
+        <div class="tx-col tx-col-label">---</div>
+        <div class="tx-col tx-col-note">${tr.note || '---'}</div>
+        <div class="tx-col tx-col-amount transfer">-${fmt(tr.from_amount, tr.from_symbol)}</div>
+        <div class="tx-col tx-col-currency">${tr.from_currency}</div>
         ${showActions ? `
-        <div class="tx-actions">
-            <button onclick="deleteTransfer(${tr.id})" title="Delete">🗑️</button>
-        </div>` : ''}
+        <button class="tx-action-btn" onclick="event.stopPropagation();deleteTransfer(${tr.id})" title="Edit"><span class="mi">edit</span></button>
+        <button class="tx-action-btn" onclick="event.stopPropagation();deleteTransfer(${tr.id})" title="Delete"><span class="mi">delete</span></button>
+        ` : ''}
     </div>`;
 }
 
@@ -335,31 +330,28 @@ function showToast(msg) {
 }
 
 // Render a single transaction item HTML
-function renderTxItem(tx, showActions = false) {
+function renderTxItem(tx, showActions = false, editable = true) {
     const sym = tx.symbol || '€';
-    const eurNote = tx.currency !== 'EUR' ? `<span class="tx-eur">(€${Math.abs(tx.amount_eur).toFixed(2)})</span>` : '';
+    const eurNote = tx.currency !== 'EUR' ? ` <span class="tx-eur">(€${Math.abs(tx.amount_eur).toFixed(2)})</span>` : '';
     const labelsHtml = (tx.labels && tx.labels.length)
-        ? `<div class="tx-label-row">${tx.labels.map(l => `<span class="label-chip" style="background:${l.color}22;color:${l.color}">${l.name}</span>`).join('')}</div>`
-        : '';
+        ? tx.labels.map(l => `<span class="label-chip" style="background:${l.color}22;color:${l.color}">${l.name}</span>`).join(' ')
+        : '---';
+    const dblClickAttr = editable ? `ondblclick="editTransaction(${tx.id})"` : '';
     return `
-    <div class="tx-item" ondblclick="editTransaction(${tx.id})">
+    <div class="tx-item${showActions ? '' : ' no-actions'}" ${dblClickAttr}>
         <div class="tx-icon" style="background:${tx.category_color}22; color:${tx.category_color}">
             ${tx.category_icon}
         </div>
-        <div class="tx-details">
-            <div class="tx-cat">${tx.category_name}</div>
-            <div class="tx-note">${tx.note || tx.wallet_name} <span class="tx-currency-badge">${tx.currency}</span></div>
-            ${labelsHtml}
-        </div>
-        <div class="tx-right">
-            <div class="tx-amount ${tx.type}">${tx.type === 'income' ? '+' : '-'}${fmt(tx.amount, sym)} ${eurNote}</div>
-            <div class="tx-date">${formatDate(tx.date)}</div>
-        </div>
+        <div class="tx-col tx-col-wallet">${tx.wallet_name}</div>
+        <div class="tx-col tx-col-cat">${tx.category_name}</div>
+        <div class="tx-col tx-col-label">${labelsHtml}</div>
+        <div class="tx-col tx-col-note">${tx.note || '---'}</div>
+        <div class="tx-col tx-col-amount ${tx.type}">${tx.type === 'income' ? '+' : '-'}${fmt(tx.amount, sym)}${eurNote}</div>
+        <div class="tx-col tx-col-currency">${tx.currency}</div>
         ${showActions ? `
-        <div class="tx-actions">
-            <button onclick="editTransaction(${tx.id})" title="Edit">✏️</button>
-            <button onclick="deleteTransaction(${tx.id})" title="Delete">🗑️</button>
-        </div>` : ''}
+        <button class="tx-action-btn" onclick="event.stopPropagation();editTransaction(${tx.id})" title="Edit"><span class="mi">edit</span></button>
+        <button class="tx-action-btn" onclick="event.stopPropagation();deleteTransaction(${tx.id})" title="Delete"><span class="mi">delete</span></button>
+        ` : ''}
     </div>`;
 }
 

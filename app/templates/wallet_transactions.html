@@ -5,8 +5,8 @@
     {% include "partials/sidebar.html" %}
     <main class="main-content">
         <header class="top-bar">
-            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-            <button class="btn btn-outline btn-sm" onclick="history.back()" style="margin-right:8px">← Back</button>
+            <button class="menu-toggle" onclick="toggleSidebar()"><span class="mi">menu</span></button>
+            <button class="btn btn-outline btn-sm" onclick="history.back()" style="margin-right:8px"><span class="mi">arrow_back</span> Back</button>
             <div>
                 <h2 id="walletTxPageTitle" style="margin:0;font-size:1.1rem">Loading…</h2>
                 <div id="walletTxPageSubtitle" style="font-size:.8rem;color:var(--text-secondary);margin-top:1px"></div>
@@ -28,7 +28,7 @@
             <input type="date" id="filterEnd" onchange="loadWalletTxPage()">
         </div>
 
-        <div id="walletTxPageList" class="transaction-list full-list"></div>
+        <div id="walletTxPageList" class="transaction-list full-list" data-wallet-id="{{ wallet_id }}"></div>
 
         {% include "partials/add_transaction_modal.html" %}
     </main>
@@ -37,28 +37,50 @@
 {% endblock %}
 {% block scripts %}
 <script>
-const WALLET_ID = {{ wallet_id }};
+const WALLET_ID = parseInt(document.getElementById('walletTxPageList').dataset.walletId, 10);
 
 async function initWalletTxPage() {
-    // Load wallet info for header
-    const wallets = await api('/api/wallets');
+    // Fetch wallet info and categories in parallel
+    const [wallets, cats] = await Promise.all([api('/api/wallets'), api('/api/categories')]);
+
     const wallet = wallets.find(w => w.id === WALLET_ID);
-    if (wallet) {
-        document.getElementById('walletTxPageTitle').textContent = wallet.icon + ' ' + wallet.name;
-        document.getElementById('walletTxPageSubtitle').textContent =
-            wallet.is_loan
-                ? (wallet.loan_counterparty ? '🏦 Loan · ' + wallet.loan_counterparty : '🏦 Loan Account')
-                : wallet.currency + ' Account';
-        document.title = wallet.name + ' - WalletApp';
+    if (!wallet) {
+        document.getElementById('walletTxPageTitle').textContent = 'Account not found';
+        document.getElementById('walletTxPageList').innerHTML =
+            '<div class="tx-empty">This account does not exist or has been deleted. <a href="/wallets" style="color:var(--primary)">Go to Wallets</a></div>';
+        return;
     }
 
-    // Load category dropdown
-    const cats = await api('/api/categories');
+    document.getElementById('walletTxPageTitle').textContent = wallet.icon + ' ' + wallet.name;
+    document.getElementById('walletTxPageSubtitle').textContent =
+        wallet.is_loan
+            ? (wallet.loan_counterparty ? '🏦 Loan · ' + wallet.loan_counterparty : '🏦 Loan Account')
+            : wallet.currency + ' Account';
+    document.title = wallet.name + ' - WalletApp';
+
+    // Category filter dropdown
     document.getElementById('filterCategory').innerHTML =
         '<option value="">All Categories</option>' +
         cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
 
     loadWalletTxPage();
+}
+
+function openAddModal() {
+    // Override the global openAddModal to pre-select this wallet
+    document.getElementById('editTxId').value = '';
+    document.getElementById('txModalTitle').textContent = 'Add Transaction';
+    document.getElementById('txAmount').value = '';
+    document.getElementById('txFromAmount').value = '';
+    document.getElementById('txNote').value = '';
+    document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+    window._selectedLabelIds = [];
+    setTxType('expense');
+    loadModalDropdowns().then(() => {
+        const walletSel = document.getElementById('txWallet');
+        if (walletSel) walletSel.value = WALLET_ID;
+    });
+    openModal('addTransactionModal');
 }
 
 async function loadWalletTxPage() {

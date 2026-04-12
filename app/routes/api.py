@@ -27,6 +27,7 @@ def get_currencies():
 def get_transactions():
     wallet_id = request.args.get("wallet_id", type=int)
     category_id = request.args.get("category_id", type=int)
+    label_id = request.args.get("label_id", type=int)
     tx_type = request.args.get("type")
     start = request.args.get("start")
     end = request.args.get("end")
@@ -37,6 +38,8 @@ def get_transactions():
         q = q.filter_by(wallet_id=wallet_id)
     if category_id:
         q = q.filter_by(category_id=category_id)
+    if label_id:
+        q = q.filter(Transaction.labels.any(Label.id == label_id))
     if tx_type in ("income", "expense"):
         q = q.filter_by(type=tx_type)
     if start:
@@ -180,6 +183,34 @@ def delete_transaction(tx_id):
     return jsonify({"success": True})
 
 
+@api_bp.route("/transactions/bulk-delete", methods=["POST"])
+@login_required
+def bulk_delete_transactions():
+    data = request.get_json()
+    ids = data.get("ids", [])
+    if not ids or not isinstance(ids, list):
+        return jsonify({"error": "No transaction IDs provided"}), 400
+
+    txns = Transaction.query.filter(
+        Transaction.id.in_(ids),
+        Transaction.user_id == current_user.id,
+    ).all()
+
+    deleted = 0
+    for tx in txns:
+        wallet = Wallet.query.get(tx.wallet_id)
+        if wallet:
+            if tx.type == "income":
+                wallet.balance -= tx.amount
+            else:
+                wallet.balance += tx.amount
+        db.session.delete(tx)
+        deleted += 1
+
+    db.session.commit()
+    return jsonify({"deleted": deleted})
+
+
 # --- Labels ---
 
 @api_bp.route("/labels", methods=["GET"])
@@ -316,6 +347,205 @@ def import_csv():
                 category_id=cat.id,
             )
             db.session.add(tx)
+
+            if tx_type == "income":
+                wallet.balance += amount
+            else:
+                wallet.balance -= amount
+
+            imported += 1
+        except Exception as e:
+            errors.append(f"Row {i}: {str(e)}")
+
+    db.session.commit()
+    return jsonify({"imported": imported, "errors": errors})
+
+
+@api_bp.route("/import/mapped", methods=["POST"])
+@login_required
+def import_mapped():
+    """Import CSV with user-defined column mapping and date format."""
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files["file"]
+    if not file.filename or not file.filename.endswith(".csv"):
+        return jsonify({"error": "File must be a .csv"}), 400
+
+    # Mapping config sent as form fields
+    col_date = request.form.get("col_date", "").strip()
+    col_amount = request.form.get("col_amount", "").strip()
+    col_type = request.form.get("col_type", "").strip()
+    col_category = request.form.get("col_category", "").strip()
+    col_wallet = request.form.get("col_wallet", "").strip()
+    col_note = request.form.get("col_note", "").strip()
+    col_currency = request.form.get("col_currency", "").strip()
+    col_exchange_rate = request.form.get("col_exchange_rate", "").strip()
+    col_amount_eur = request.form.get("col_amount_eur", "").strip()
+    col_labels = request.form.get("col_labels", "").strip()
+    date_format = request.form.get("date_format", "%Y-%m-%d").strip()
+    default_type = request.form.get("default_type", "").strip().lower()
+    default_wallet_id = request.form.get("default_wallet_id", type=int)
+
+    if not col_date or not col_amount:
+        return jsonify({"error": "Date and Amount column mappings are required"}), 400
+
+    stream = io.StringIO(file.stream.read().decode("utf-8-sig"))
+    reader = csv.DictReader(stream)
+
+    wallets = {w.name.lower(): w for w in Wallet.query.filter_by(user_id=current_user.id).all()}
+    wallets_by_id = {w.id: w for w in Wallet.query.filter_by(user_id=current_user.id).all()}
+    wallets_by_currency = {}
+    for w in wallets.values():
+        wallets_by_currency.setdefault(w.currency.upper(), w)
+    categories = {c.name.lower(): c for c in Category.query.all()}
+    existing_labels = {l.name.lower(): l for l in Label.query.filter_by(user_id=current_user.id).all()}
+
+    default_wallet = wallets_by_id.get(default_wallet_id)
+    if not default_wallet and wallets:
+        default_wallet = list(wallets.values())[0]
+
+    imported = 0
+    errors = []
+    for i, row in enumerate(reader, start=2):
+        try:
+            # --- Date ---
+            raw_date = row.get(col_date, "").strip()
+            if not raw_date:
+                errors.append(f"Row {i}: Empty date")
+                continue
+            # Strip ISO 8601 time portion (e.g. 2024-02-26T11:00:51+00:00 → 2024-02-26)
+            if "T" in raw_date:
+                raw_date = raw_date.split("T")[0]
+            try:
+                tx_date = datetime.strptime(raw_date, date_format).date()
+            except ValueError:
+                errors.append(f"Row {i}: Cannot parse date '{raw_date}' with format '{date_format}'")
+                continue
+
+            # --- Amount ---
+            raw_amount = row.get(col_amount, "").strip().replace(",", "")
+            if not raw_amount:
+                errors.append(f"Row {i}: Empty amount")
+                continue
+            amount = abs(float(raw_amount))
+            if amount == 0:
+                errors.append(f"Row {i}: Zero amount")
+                continue
+
+            # --- Type ---
+            if col_type:
+                raw_type = row.get(col_type, "").strip().lower()
+                if raw_type in ("income", "credit", "cr", "incoming transfer"):
+                    tx_type = "income"
+                elif raw_type in ("expense", "debit", "dr", "outgoing transfer"):
+                    tx_type = "expense"
+                elif "incoming" in raw_type or "credit" in raw_type:
+                    tx_type = "income"
+                elif "outgoing" in raw_type or "debit" in raw_type:
+                    tx_type = "expense"
+                else:
+                    tx_type = default_type or "expense"
+            else:
+                # Infer from sign if no type column
+                raw_val = row.get(col_amount, "").strip().replace(",", "")
+                if raw_val.startswith("-"):
+                    tx_type = "expense"
+                elif raw_val.startswith("+"):
+                    tx_type = "income"
+                else:
+                    tx_type = default_type or "expense"
+
+            if tx_type not in ("income", "expense"):
+                tx_type = "expense"
+
+            # --- Wallet ---
+            wallet = default_wallet
+            if col_wallet:
+                wname = row.get(col_wallet, "").strip().lower()
+                if wname and wname in wallets:
+                    wallet = wallets[wname]
+            # If no wallet matched by name, try matching by currency column
+            if wallet == default_wallet and col_currency:
+                ccy = row.get(col_currency, "").strip().upper()
+                if ccy and ccy in wallets_by_currency:
+                    wallet = wallets_by_currency[ccy]
+            if not wallet:
+                errors.append(f"Row {i}: No wallet found")
+                continue
+
+            # --- Category ---
+            cat = None
+            if col_category:
+                cname = row.get(col_category, "").strip().lower()
+                cat = categories.get(cname)
+                if not cat:
+                    cat = next((c for k, c in categories.items() if cname and (cname in k or k in cname)), None)
+            if not cat:
+                cat = categories.get("others") or categories.get("other") or (list(categories.values())[0] if categories else None)
+            if not cat:
+                errors.append(f"Row {i}: No category found")
+                continue
+
+            # --- Note ---
+            note = ""
+            if col_note:
+                note = row.get(col_note, "").strip()[:200]
+
+            # --- Exchange rate & EUR amount ---
+            exchange_rate = 1.0
+            if col_exchange_rate:
+                try:
+                    exchange_rate = float(row.get(col_exchange_rate, "1").strip().replace(",", "") or "1")
+                except ValueError:
+                    exchange_rate = 1.0
+            if exchange_rate <= 0:
+                exchange_rate = 1.0
+
+            amount_eur = None
+            if col_amount_eur:
+                try:
+                    raw_eur = row.get(col_amount_eur, "").strip().replace(",", "")
+                    if raw_eur:
+                        amount_eur = abs(float(raw_eur))
+                except ValueError:
+                    pass
+
+            if amount_eur is None:
+                if wallet.currency == "EUR":
+                    amount_eur = amount
+                else:
+                    amount_eur = amount * exchange_rate
+
+            tx = Transaction(
+                amount=amount,
+                amount_eur=amount_eur,
+                exchange_rate=exchange_rate,
+                type=tx_type,
+                note=note,
+                date=tx_date,
+                user_id=current_user.id,
+                wallet_id=wallet.id,
+                category_id=cat.id,
+            )
+            db.session.add(tx)
+            db.session.flush()
+
+            # --- Labels ---
+            if col_labels:
+                raw_labels = row.get(col_labels, "").strip()
+                if raw_labels:
+                    label_names = [l.strip() for l in raw_labels.split(",") if l.strip()]
+                    lbl_objs = []
+                    for lname in label_names:
+                        lbl = existing_labels.get(lname.lower())
+                        if not lbl:
+                            lbl = Label(name=lname, user_id=current_user.id)
+                            db.session.add(lbl)
+                            db.session.flush()
+                            existing_labels[lname.lower()] = lbl
+                        lbl_objs.append(lbl)
+                    tx.labels = lbl_objs
 
             if tx_type == "income":
                 wallet.balance += amount
@@ -619,6 +849,17 @@ def get_stats():
         extract("year", Transaction.date) == year,
     ).group_by(Transaction.date).order_by(Transaction.date).all()
 
+    # Daily net flows for running-balance chart
+    daily_flows_raw = db.session.query(
+        Transaction.date,
+        Transaction.type,
+        func.sum(Transaction.amount_eur).label("total"),
+    ).filter(
+        Transaction.user_id == current_user.id,
+        extract("month", Transaction.date) == month,
+        extract("year", Transaction.date) == year,
+    ).group_by(Transaction.date, Transaction.type).order_by(Transaction.date).all()
+
     wallets = Wallet.query.filter_by(user_id=current_user.id).all()
 
     def _est_eur(w):
@@ -638,6 +879,23 @@ def get_stats():
     ]
     total_balance_eur = round(sum(d["balance_eur"] for d in wallet_data), 2)
 
+    # Build running daily balance for the selected month
+    flows_by_date = {}
+    for row in daily_flows_raw:
+        d = row[0]
+        flows_by_date.setdefault(d, 0.0)
+        if row[1] == "income":
+            flows_by_date[d] += float(row[2])
+        else:
+            flows_by_date[d] -= float(row[2])
+
+    balance_start = round(total_balance_eur - (float(income) - float(expense)), 2)
+    running = balance_start
+    daily_balance = [{"date": f"{year}-{str(month).zfill(2)}-01", "balance": balance_start}]
+    for d in sorted(flows_by_date.keys()):
+        running = round(running + flows_by_date[d], 2)
+        daily_balance.append({"date": d.isoformat(), "balance": running})
+
     return jsonify({
         "income": float(income),
         "expense": float(expense),
@@ -645,6 +903,7 @@ def get_stats():
         "total_balance_eur": total_balance_eur,
         "by_category": [{"name": c[0], "color": c[1], "icon": c[2], "total": float(c[3])} for c in by_category],
         "daily": [{"date": d[0].isoformat(), "amount": float(d[1])} for d in daily],
+        "daily_balance": daily_balance,
         "wallets_summary": wallet_data,
     })
 
@@ -655,10 +914,14 @@ def get_stats():
 @login_required
 def get_analytics():
     year = request.args.get("year", type=int, default=date.today().year)
+    month = request.args.get("month", type=int)
+    if month is not None and (month < 1 or month > 12):
+        month = None
 
     # Monthly income + expense
     monthly = []
-    for m in range(1, 13):
+    month_range = [month] if month else range(1, 13)
+    for m in month_range:
         inc = db.session.query(func.coalesce(func.sum(Transaction.amount_eur), 0)).filter(
             Transaction.user_id == current_user.id, Transaction.type == "income",
             extract("year", Transaction.date) == year, extract("month", Transaction.date) == m,
@@ -670,21 +933,37 @@ def get_analytics():
         monthly.append({"month": m, "income": float(inc), "expense": float(exp)})
 
     # By category (expense)
+    expense_join_filters = (
+        (Transaction.category_id == Category.id)
+        & (Transaction.user_id == current_user.id)
+        & (Transaction.type == "expense")
+        & (extract("year", Transaction.date) == year)
+    )
+    if month:
+        expense_join_filters = expense_join_filters & (extract("month", Transaction.date) == month)
+
     cat_expense = db.session.query(
         Category.id, Category.name, Category.color, Category.icon,
         func.coalesce(func.sum(Transaction.amount_eur), 0).label("total"),
         func.count(Transaction.id).label("cnt"),
-    ).outerjoin(Transaction, (Transaction.category_id == Category.id) & (Transaction.user_id == current_user.id)
-                & (Transaction.type == "expense") & (extract("year", Transaction.date) == year)
+    ).outerjoin(Transaction, expense_join_filters
     ).group_by(Category.id).order_by(func.sum(Transaction.amount_eur).desc()).all()
 
     # By category (income)
+    income_join_filters = (
+        (Transaction.category_id == Category.id)
+        & (Transaction.user_id == current_user.id)
+        & (Transaction.type == "income")
+        & (extract("year", Transaction.date) == year)
+    )
+    if month:
+        income_join_filters = income_join_filters & (extract("month", Transaction.date) == month)
+
     cat_income = db.session.query(
         Category.id, Category.name, Category.color, Category.icon,
         func.coalesce(func.sum(Transaction.amount_eur), 0).label("total"),
         func.count(Transaction.id).label("cnt"),
-    ).outerjoin(Transaction, (Transaction.category_id == Category.id) & (Transaction.user_id == current_user.id)
-                & (Transaction.type == "income") & (extract("year", Transaction.date) == year)
+    ).outerjoin(Transaction, income_join_filters
     ).group_by(Category.id).order_by(func.sum(Transaction.amount_eur).desc()).all()
 
     # By label
@@ -696,18 +975,21 @@ def get_analytics():
         ).filter(
             Transaction.user_id == current_user.id, Transaction.type == "expense",
             transaction_labels.c.label_id == lbl.id, extract("year", Transaction.date) == year,
+            *( [extract("month", Transaction.date) == month] if month else [] ),
         ).scalar()
         inc = db.session.query(func.coalesce(func.sum(Transaction.amount_eur), 0)).join(
             transaction_labels, Transaction.id == transaction_labels.c.transaction_id
         ).filter(
             Transaction.user_id == current_user.id, Transaction.type == "income",
             transaction_labels.c.label_id == lbl.id, extract("year", Transaction.date) == year,
+            *( [extract("month", Transaction.date) == month] if month else [] ),
         ).scalar()
         cnt = db.session.query(func.count(Transaction.id)).join(
             transaction_labels, Transaction.id == transaction_labels.c.transaction_id
         ).filter(
             Transaction.user_id == current_user.id, transaction_labels.c.label_id == lbl.id,
             extract("year", Transaction.date) == year,
+            *( [extract("month", Transaction.date) == month] if month else [] ),
         ).scalar()
         label_stats.append({
             "id": lbl.id, "name": lbl.name, "color": lbl.color,
@@ -716,6 +998,8 @@ def get_analytics():
 
     return jsonify({
         "year": year,
+        "month": month,
+        "period_mode": "month" if month else "year",
         "monthly": monthly,
         "by_category_expense": [
             {"id": c[0], "name": c[1], "color": c[2], "icon": c[3], "total": float(c[4]), "count": c[5]}

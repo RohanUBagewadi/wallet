@@ -5,15 +5,23 @@
     {% include "partials/sidebar.html" %}
     <main class="main-content">
         <header class="top-bar">
-            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <button class="menu-toggle" onclick="toggleSidebar()"><span class="mi">menu</span></button>
             <h2>Transactions</h2>
             <div style="margin-left:auto;display:flex;gap:8px">
-                <button class="btn btn-outline btn-sm" onclick="exportCSV()">📥 Export CSV</button>
-                <label class="btn btn-outline btn-sm" style="cursor:pointer">📤 Import CSV
-                    <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="importCSV(this)">
-                </label>
+                <button class="btn btn-outline btn-sm" onclick="toggleSelectMode()" id="selectModeBtn"><span class="mi">checklist</span> Select</button>
+                <button class="btn btn-outline btn-sm" onclick="exportCSV()"><span class="mi">download</span> Export CSV</button>
             </div>
         </header>
+
+        <!-- Selection toolbar -->
+        <div id="selectionBar" class="selection-bar" style="display:none">
+            <label class="select-all-label">
+                <input type="checkbox" id="selectAllCb" onchange="toggleSelectAll()">
+                <span id="selectedCount">0 selected</span>
+            </label>
+            <button class="btn btn-danger btn-sm" onclick="deleteSelected()"><span class="mi">delete</span> Delete Selected</button>
+            <button class="btn btn-outline btn-sm" onclick="toggleSelectMode()">Cancel</button>
+        </div>
 
         <!-- Filters -->
         <div class="filters-bar">
@@ -28,6 +36,9 @@
             </select>
             <select id="filterCategory" onchange="loadTransactions()">
                 <option value="">All Categories</option>
+            </select>
+            <select id="filterLabel" onchange="loadTransactions()">
+                <option value="">All Labels</option>
             </select>
             <input type="date" id="filterStart" onchange="loadTransactions()">
             <input type="date" id="filterEnd" onchange="loadTransactions()">

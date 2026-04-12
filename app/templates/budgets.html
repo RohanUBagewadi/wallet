@@ -5,12 +5,12 @@
     {% include "partials/sidebar.html" %}
     <main class="main-content">
         <header class="top-bar">
-            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <button class="menu-toggle" onclick="toggleSidebar()"><span class="mi">menu</span></button>
             <h2>Budgets</h2>
             <div class="month-selector">
-                <button onclick="changeBudgetMonth(-1)">‹</button>
+                <button onclick="changeBudgetMonth(-1)"><span class="mi">navigate_before</span></button>
                 <span id="budgetMonthLabel"></span>
-                <button onclick="changeBudgetMonth(1)">›</button>
+                <button onclick="changeBudgetMonth(1)"><span class="mi">navigate_next</span></button>
             </div>
         </header>
 

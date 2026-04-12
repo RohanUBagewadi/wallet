@@ -1,4 +1,4 @@
-const CACHE_NAME = 'walletapp-v1';
+const CACHE_NAME = 'walletapp-v7';
 const ASSETS = ['/static/style.css', '/static/app.js'];
 
 self.addEventListener('install', (e) => {

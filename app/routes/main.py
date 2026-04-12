@@ -48,6 +48,12 @@ def loans():
     return render_template("loans.html")
 
 
+@main_bp.route("/import")
+@login_required
+def import_page():
+    return render_template("import.html")
+
+
 @main_bp.route("/wallet/<int:wallet_id>")
 @login_required
 def wallet_transactions(wallet_id):

@@ -6,59 +6,81 @@
 ![Render](https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=000000)
 ![Status](https://img.shields.io/badge/Status-Active-22C55E)
 
-WalletApp is a Flask-based personal finance tracker inspired by Spendee. It supports multi-currency wallets, income and expense transactions, transfers, budgets, labels, statistics, and loan accounts with EMI repayment tracking.
+A personal finance tracker built with Flask. Manage multi-currency wallets, track income and expenses, set budgets, monitor loans with EMI repayment, and visualize spending — all from a sleek dark-themed interface with Material icons.
+
+---
 
 ## Features
 
-- User registration and login
-- Multi-currency wallets
+**Core**
+- Multi-currency wallets (EUR, USD, INR, GBP, AUD) with automatic EUR conversion
 - Income, expense, transfer, and EMI transactions
-- Loan accounts with outstanding balance, ROI, and tenure
-- Wallet-to-wallet transfers with exchange-rate support
-- Budgets by category and month
-- Labels for transaction organization
-- Dashboard and statistics views
-- CSV import and export
-- PWA-friendly frontend with an installable app shell
+- Wallet-to-wallet transfers with custom exchange rates
+- Loan accounts with outstanding balance, ROI, tenure, and EMI tracking
 
-## Screenshots
+**Organization**
+- Category-based budgets with monthly progress tracking
+- Labels for flexible transaction tagging
+- Notes on every transaction
 
-Add your own screenshots here to show the app in action. Recommended images:
+**Analytics**
+- Dashboard with balance trend chart and category doughnut
+- Statistics page with year-wise and month-wise breakdowns
+- Clickable expense categories to drill into transactions
 
-- Dashboard
-- Wallets and loan accounts
-- Transactions page
-- Statistics page
+**Import & Export**
+- CSV import with column mapping, date format selection, and auto-detection
+- CSV export of filtered transactions
 
-Example layout:
+**Design**
+- Dark theme with black background throughout
+- Google Material Symbols Rounded icons
+- Progressive Web App (PWA) — installable on any device
+- Responsive layout for desktop, tablet, and mobile
 
-```md
-![Dashboard](docs/screenshots/dashboard.png)
-![Wallets](docs/screenshots/wallets.png)
-![Transactions](docs/screenshots/transactions.png)
-![Statistics](docs/screenshots/statistics.png)
-```
+---
 
 ## Tech Stack
 
-- Flask
-- Flask-SQLAlchemy
-- Flask-Login
-- Flask-WTF
-- SQLite for local development
-- PostgreSQL for production deployment
-- Chart.js for analytics charts
+| Layer | Technology |
+|-------|-----------|
+| Backend | Flask, Flask-SQLAlchemy, Flask-Login |
+| Database | SQLite (dev) / PostgreSQL (prod) |
+| Frontend | Vanilla JS, Chart.js 4.4.0 |
+| Icons | Google Material Symbols Rounded |
+| Font | Inter (Google Fonts) |
+| Deployment | Gunicorn on Render |
+
+---
 
 ## Project Structure
 
-- `run.py` - app entry point for local development and Gunicorn
-- `config.py` - application configuration and database URL handling
-- `app/` - Flask application package
-- `app/routes/` - main, auth, and API routes
-- `app/models.py` - database models
-- `app/static/` - JavaScript, CSS, icons, and service worker
-- `app/templates/` - Jinja templates
-- `bruno/` - API request collection
+```
+run.py                  App entry point
+config.py               Configuration and DB URL handling
+app/
+  __init__.py           App factory, DB init, category seeding
+  models.py             SQLAlchemy models
+  routes/
+    api.py              REST API (transactions, wallets, budgets, stats, import)
+    auth.py             Login, register, logout
+    main.py             Page routes
+  static/
+    style.css           Dark theme styles
+    app.js              Shared JS (transaction rendering, API helper)
+    dashboard.js        Dashboard charts and data
+    transactions.js     Transaction list, filters, bulk delete, export
+    statistics.js       Statistics charts and drill-down
+    budgets.js          Budget management
+    wallets.js          Wallet CRUD and icon selector
+    loans.js            Loan overview
+    import.js           CSV import with column mapping
+    sw.js               Service worker for PWA caching
+  templates/            Jinja2 templates
+bruno/                  Bruno API collection for testing
+```
+
+---
 
 ## Local Setup
 
@@ -70,8 +92,6 @@ cd wallet
 ```
 
 ### 2. Create and activate a virtual environment
-
-Windows PowerShell:
 
 ```powershell
 python -m venv .venv
@@ -90,50 +110,36 @@ pip install -r requirements.txt
 python run.py
 ```
 
-Open `http://127.0.0.1:5000` in your browser.
+Open `http://127.0.0.1:5000` in your browser. Default categories are seeded automatically on first launch.
+
+---
 
 ## Environment Variables
 
-The app uses these environment variables in production:
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `SECRET_KEY` | Flask secret key | Production |
+| `DATABASE_URL` | PostgreSQL connection string | Production |
 
-- `SECRET_KEY` - Flask secret key
-- `DATABASE_URL` - PostgreSQL connection string
+If `DATABASE_URL` is not set, the app uses a local SQLite database in `instance/`.
 
-If `DATABASE_URL` is not set, the app falls back to a local SQLite database in the `instance/` folder.
-
-## Database Notes
-
-For local development, SQLite is used automatically.
-
-For production, use a PostgreSQL database. A free option is Neon. Set the connection string in `DATABASE_URL` on your hosting platform.
-
-Note: pCloud is file storage, not a database host, so it cannot be used to run the app database.
+---
 
 ## Deployment
 
-This project is ready for Render deployment.
-
 ### Render
 
-1. Create a free PostgreSQL database on Neon.
-2. Create a new Render Web Service from this GitHub repository.
-3. Use the included `Procfile` with Gunicorn.
-4. Set these environment variables on Render:
-   - `SECRET_KEY`
-   - `DATABASE_URL`
+1. Create a PostgreSQL database (e.g. on [Neon](https://neon.tech)).
+2. Create a new Web Service on Render from this repository.
+3. Set `SECRET_KEY` and `DATABASE_URL` as environment variables.
+4. The included `Procfile` handles the rest:
 
-### Gunicorn command
-
-The service entry point is already configured for Render:
-
-```bash
+```
 web: gunicorn run:app
 ```
 
-## Default Data
-
-On first launch, the app seeds default income and expense categories automatically.
+---
 
 ## License
 
-No license has been added yet. Add one if you plan to publish or share this project publicly.
+No license added yet. Add one if you plan to share this project publicly.

@@ -3,12 +3,21 @@
 {% block body %}
 <div class="landing">
     <div class="landing-bg"></div>
+    <nav class="landing-nav">
+        <div class="landing-brand">
+            <span class="mi">wallet</span>
+            <span>WalletApp</span>
+        </div>
+        <div class="landing-nav-links">
+            <a href="{{ url_for('auth.login') }}" class="btn btn-outline btn-sm">Sign In</a>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">Get Started</a>
+        </div>
+    </nav>
     <div class="landing-content">
         <div class="landing-hero">
-            <div class="landing-icon">💰</div>
-            <h1>WalletApp</h1>
-            <p class="landing-subtitle">Smart expense tracking for everyone</p>
-            <p class="landing-desc">Track your income, expenses, and budgets all in one place. Free forever.</p>
+            <div class="landing-icon"><span class="mi">account_balance_wallet</span></div>
+            <h1>Track your money,<br><span class="highlight">effortlessly</span></h1>
+            <p class="landing-subtitle">Income, expenses, budgets, multiple wallets and loans — all in one beautifully simple app. Free forever.</p>
             <div class="landing-actions">
                 <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Get Started Free</a>
                 <a href="{{ url_for('auth.login') }}" class="btn btn-outline btn-lg">Sign In</a>
@@ -16,24 +25,24 @@
         </div>
         <div class="landing-features">
             <div class="feature-card">
-                <span class="feature-icon">📊</span>
+                <div class="feature-icon"><span class="mi">analytics</span></div>
                 <h3>Visual Reports</h3>
-                <p>Beautiful charts to understand your spending</p>
+                <p>Beautiful charts and statistics to understand your spending patterns</p>
             </div>
             <div class="feature-card">
-                <span class="feature-icon">💳</span>
+                <div class="feature-icon"><span class="mi">account_balance_wallet</span></div>
                 <h3>Multiple Wallets</h3>
-                <p>Track cash, cards, and bank accounts</p>
+                <p>Track cash, cards, and bank accounts in any currency</p>
             </div>
             <div class="feature-card">
-                <span class="feature-icon">🎯</span>
-                <h3>Budgets</h3>
-                <p>Set budgets and stay on track</p>
+                <div class="feature-icon"><span class="mi">track_changes</span></div>
+                <h3>Smart Budgets</h3>
+                <p>Set category budgets and stay on track month by month</p>
             </div>
             <div class="feature-card">
-                <span class="feature-icon">📱</span>
+                <div class="feature-icon"><span class="mi">devices</span></div>
                 <h3>Works Everywhere</h3>
-                <p>Mobile-friendly PWA, use on any device</p>
+                <p>Responsive PWA — works on phone, tablet, and desktop</p>
             </div>
         </div>
     </div>

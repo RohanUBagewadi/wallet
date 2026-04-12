@@ -1,11 +1,19 @@
 /* Transactions page */
 
+let selectMode = false;
+let selectedIds = new Set();
+let currentItems = []; // store last loaded items for re-render
+
 async function loadFilterDropdowns() {
-    const [cats, wallets] = await Promise.all([api('/api/categories'), api('/api/wallets')]);
+    const [cats, wallets, labels] = await Promise.all([api('/api/categories'), api('/api/wallets'), api('/api/labels')]);
     const wSel = document.getElementById('filterWallet');
     wSel.innerHTML = '<option value="">All Wallets</option>' + wallets.map(w => `<option value="${w.id}">${w.icon} ${w.name}</option>`).join('');
     const cSel = document.getElementById('filterCategory');
     cSel.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+    const lSel = document.getElementById('filterLabel');
+    lSel.innerHTML = '<option value="">All Labels</option>' + labels.map(l =>
+        `<option value="${l.id}" style="color:${l.color}">${l.name}</option>`
+    ).join('');
 }
 
 async function loadTransactions() {
@@ -13,12 +21,14 @@ async function loadTransactions() {
     const type = document.getElementById('filterType').value;
     const wallet = document.getElementById('filterWallet').value;
     const category = document.getElementById('filterCategory').value;
+    const label = document.getElementById('filterLabel').value;
     const start = document.getElementById('filterStart').value;
     const end = document.getElementById('filterEnd').value;
 
     if (type && type !== 'transfer') params.set('type', type);
     if (wallet) params.set('wallet_id', wallet);
     if (category) params.set('category_id', category);
+    if (label) params.set('label_id', label);
     if (start) params.set('start', start);
     if (end) params.set('end', end);
 
@@ -45,20 +55,34 @@ async function loadTransactions() {
 
     if (all.length === 0) {
         container.innerHTML = '<div class="tx-empty">No transactions found</div>';
+        currentItems = [];
         return;
     }
 
-    // Group by date
+    currentItems = all;
+    renderTransactionList(all, container);
+}
+
+function renderTransactionList(items, container) {
     let html = '';
     let lastDate = '';
-    for (const item of all) {
+    for (const item of items) {
         if (item.date !== lastDate) {
             lastDate = item.date;
             html += `<div class="date-group-header">${formatDate(item.date)}</div>`;
         }
-        html += item.is_transfer ? renderTransferItem(item, true) : renderTxItem(item, true);
+        if (selectMode && !item.is_transfer) {
+            const checked = selectedIds.has(item.id) ? 'checked' : '';
+            html += `<div class="tx-select-row">
+                <input type="checkbox" class="tx-checkbox" data-id="${item.id}" ${checked} onchange="onTxCheckChange(this)">
+                ${renderTxItem(item, false, false)}
+            </div>`;
+        } else {
+            html += item.is_transfer ? renderTransferItem(item, true) : renderTxItem(item, true);
+        }
     }
     container.innerHTML = html;
+    updateSelectedCount();
 }
 
 function refreshPage() {
@@ -95,6 +119,83 @@ async function importCSV(input) {
 
     // Reset input so same file can be re-imported
     input.value = '';
+}
+
+// --- Selection Mode ---
+function toggleSelectMode() {
+    selectMode = !selectMode;
+    selectedIds.clear();
+    const bar = document.getElementById('selectionBar');
+    const btn = document.getElementById('selectModeBtn');
+    const selectAllCb = document.getElementById('selectAllCb');
+
+    if (selectMode) {
+        bar.style.display = 'flex';
+        btn.textContent = '✕ Cancel';
+        btn.classList.add('active');
+    } else {
+        bar.style.display = 'none';
+        btn.innerHTML = '<span class="mi">checklist</span> Select';
+        btn.classList.remove('active');
+        selectAllCb.checked = false;
+    }
+
+    // Re-render list with/without checkboxes
+    const container = document.getElementById('transactionsList');
+    if (currentItems.length) renderTransactionList(currentItems, container);
+}
+
+function onTxCheckChange(cb) {
+    const id = parseInt(cb.dataset.id);
+    if (cb.checked) {
+        selectedIds.add(id);
+    } else {
+        selectedIds.delete(id);
+    }
+    updateSelectedCount();
+}
+
+function toggleSelectAll() {
+    const checked = document.getElementById('selectAllCb').checked;
+    if (checked) {
+        currentItems.forEach(item => { if (!item.is_transfer) selectedIds.add(item.id); });
+    } else {
+        selectedIds.clear();
+    }
+    // Update all checkboxes
+    document.querySelectorAll('.tx-checkbox').forEach(cb => { cb.checked = checked; });
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const el = document.getElementById('selectedCount');
+    if (el) el.textContent = `${selectedIds.size} selected`;
+}
+
+async function deleteSelected() {
+    if (selectedIds.size === 0) {
+        showToast('No transactions selected', 'error');
+        return;
+    }
+    if (!confirm(`Delete ${selectedIds.size} transaction(s)? This cannot be undone.`)) return;
+
+    try {
+        const res = await fetch('/api/transactions/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: Array.from(selectedIds) }),
+        });
+        const data = await res.json();
+        if (data.error) {
+            showToast('Error: ' + data.error, 'error');
+        } else {
+            showToast(`Deleted ${data.deleted} transaction(s)`);
+            selectedIds.clear();
+            loadTransactions();
+        }
+    } catch (e) {
+        showToast('Network error', 'error');
+    }
 }
 
 // Init

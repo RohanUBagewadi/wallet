@@ -83,7 +83,7 @@ async function loadBudgets() {
                     <span class="budget-pct-badge" style="background:${color}22;color:${color}">${Math.round(rawPct)}%</span>
                 </div>
                 <div class="budget-card-actions">
-                    <button class="btn-icon-del" onclick="openEditBudget(${b.id}, ${b.amount}, '${b.category.icon} ${b.category.name}')" title="Edit">✏️</button>
+                    <button class="btn-icon-del" onclick="openEditBudget(${b.id}, ${b.amount}, '${b.category.icon} ${b.category.name}')" title="Edit"><span class="mi">edit</span></button>
                     <button class="btn-icon-del" onclick="deleteBudget(${b.id})" title="Delete">×</button>
                 </div>
             </div>

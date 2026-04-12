@@ -1,4 +1,6 @@
 /* Dashboard page */
+Chart.defaults.color = '#8A8A8E';
+Chart.defaults.borderColor = '#2A2A2E';
 let currentMonth = new Date().getMonth() + 1;
 let currentYear = new Date().getFullYear();
 let lineChart = null;
@@ -39,13 +41,13 @@ async function refreshPage() {
     const savingsLabel = document.getElementById('savingsLabel');
     savingsEl.textContent = (savings >= 0 ? '+' : '-') + fmtEur(Math.abs(savings));
     savingsEl.style.color = savings >= 0 ? 'var(--income)' : 'var(--expense)';
-    savingsLabel.textContent = savings >= 0 ? '💚 Net Savings' : '🔴 Net Loss';
+    savingsLabel.innerHTML = savings >= 0 ? '<span class="mi">savings</span> Net Savings' : '<span class="mi" style="color:var(--expense)">trending_down</span> Net Loss';
 
     // Wallet breakdown
     renderWalletBreakdown(stats.wallets_summary || [], stats.total_balance_eur || 0);
 
     // Charts
-    renderLineChart(stats.daily);
+    renderLineChart(stats.daily_balance);
     renderDoughnutChart(stats.by_category);
 
     // Recent transactions (last 5)
@@ -71,7 +73,7 @@ function renderWalletBreakdown(wallets, totalEur) {
         const eurFmt = w.currency !== 'EUR' ? `<span class="wallet-eur-eq">≈ ${fmtEur(w.balance_eur)}</span>` : '';
         return `
         <div class="wallet-mini-card" style="border-left:4px solid ${w.color}">
-            <div class="wallet-mini-icon">${w.icon}</div>
+            <div class="wallet-mini-icon">${/^[a-z_]+$/.test(w.icon) ? `<span class="mi">${w.icon}</span>` : w.icon}</div>
             <div class="wallet-mini-info">
                 <div class="wallet-mini-name">${w.name} <span class="tx-currency-badge">${w.currency}</span></div>
                 <div class="wallet-mini-balance">${balFmt} ${eurFmt}</div>
@@ -81,36 +83,57 @@ function renderWalletBreakdown(wallets, totalEur) {
     }).join('');
 }
 
-function renderLineChart(daily) {
+function renderLineChart(dailyBalance) {
     const ctx = document.getElementById('lineChart').getContext('2d');
     if (lineChart) lineChart.destroy();
 
-    const labels = daily.map(d => {
+    if (!dailyBalance || dailyBalance.length === 0) {
+        lineChart = null;
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        return;
+    }
+
+    const labels = dailyBalance.map(d => {
         const dt = new Date(d.date + 'T00:00:00');
         return dt.getDate();
     });
-    const data = daily.map(d => d.amount);
+    const data = dailyBalance.map(d => d.balance);
+
+    const isRising = data.length < 2 || data[data.length - 1] >= data[0];
+    const lineColor = isRising ? '#4CAF50' : '#F44336';
+    const fillColor = isRising ? 'rgba(76,175,80,0.10)' : 'rgba(244,67,54,0.10)';
 
     lineChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels,
             datasets: [{
-                label: 'Daily Spending (€)',
+                label: 'Balance (EUR)',
                 data,
-                borderColor: '#6C63FF',
-                backgroundColor: 'rgba(108,99,255,0.1)',
+                borderColor: lineColor,
+                backgroundColor: fillColor,
                 fill: true,
                 tension: 0.4,
                 pointRadius: 3,
-                pointBackgroundColor: '#6C63FF',
+                pointBackgroundColor: lineColor,
+                pointHoverRadius: 5,
             }]
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => '€' + ctx.parsed.y.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    }
+                }
+            },
             scales: {
-                y: { beginAtZero: true, ticks: { callback: v => '€' + v } },
+                y: {
+                    beginAtZero: false,
+                    ticks: { callback: v => '€' + Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }) }
+                },
                 x: { grid: { display: false } }
             }
         }

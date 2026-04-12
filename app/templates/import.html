@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Import - WalletApp{% endblock %}
+{% block body %}
+<div class="app-shell">
+    {% include "partials/sidebar.html" %}
+    <main class="main-content">
+        <header class="top-bar">
+            <button class="menu-toggle" onclick="toggleSidebar()"><span class="mi">menu</span></button>
+            <h2>Import Transactions</h2>
+        </header>
+
+        <!-- Step 1: Upload -->
+        <div id="importStep1" class="import-step">
+            <div class="card import-upload-card">
+                <h3>Upload CSV File</h3>
+                <p class="import-hint">Upload a CSV file from your bank or any spreadsheet export. You'll map the columns in the next step.</p>
+                <label class="import-dropzone" id="dropzone">
+                    <span class="dropzone-icon"><span class="mi" style="font-size:48px;color:var(--primary)">upload_file</span></span>
+                    <span class="dropzone-text">Click to select or drag & drop a .csv file</span>
+                    <input type="file" id="csvFile" accept=".csv" style="display:none">
+                </label>
+            </div>
+        </div>
+
+        <!-- Step 2: Preview + Mapping -->
+        <div id="importStep2" class="import-step" style="display:none">
+            <div class="card">
+                <div class="import-step2-header">
+                    <h3>Map Columns</h3>
+                    <button class="btn btn-outline btn-sm" onclick="resetImport()">← Change File</button>
+                </div>
+                <p class="import-hint">Select which CSV column corresponds to each field. <strong>Date</strong> and <strong>Amount</strong> are required.</p>
+
+                <!-- Date Format -->
+                <div class="import-config-row">
+                    <label>Date Format in your file:</label>
+                    <select id="dateFormat">
+                        <option value="%Y-%m-%d">YYYY-MM-DD (2026-04-12)</option>
+                        <option value="%d/%m/%Y">DD/MM/YYYY (12/04/2026)</option>
+                        <option value="%m/%d/%Y">MM/DD/YYYY (04/12/2026)</option>
+                        <option value="%d-%m-%Y">DD-MM-YYYY (12-04-2026)</option>
+                        <option value="%m-%d-%Y">MM-DD-YYYY (04-12-2026)</option>
+                        <option value="%d.%m.%Y">DD.MM.YYYY (12.04.2026)</option>
+                        <option value="%Y/%m/%d">YYYY/MM/DD (2026/04/12)</option>
+                        <option value="%b %d, %Y">Mon DD, YYYY (Apr 12, 2026)</option>
+                        <option value="%d %b %Y">DD Mon YYYY (12 Apr 2026)</option>
+                        <option value="%d %B %Y">DD Month YYYY (12 April 2026)</option>
+                    </select>
+                    <span id="datePreviewBadge" class="import-date-preview"></span>
+                </div>
+
+                <!-- Default Type & Wallet -->
+                <div class="import-config-row">
+                    <label>Default Type (if no column mapped):</label>
+                    <select id="defaultType">
+                        <option value="expense">Expense</option>
+                        <option value="income">Income</option>
+                    </select>
+                </div>
+                <div class="import-config-row">
+                    <label>Default Wallet:</label>
+                    <select id="defaultWallet"></select>
+                </div>
+
+                <!-- Column Mapping Table -->
+                <div class="import-mapping-grid">
+                    <div class="mapping-row mapping-header">
+                        <span>Field</span>
+                        <span>CSV Column</span>
+                        <span>Sample Values</span>
+                    </div>
+                    <div class="mapping-row" data-field="col_date">
+                        <span class="field-name">Date <span class="required">*</span></span>
+                        <select class="col-select" data-field="col_date"></select>
+                        <span class="sample-values" data-field="col_date"></span>
+                    </div>
+                    <div class="mapping-row" data-field="col_amount">
+                        <span class="field-name">Amount <span class="required">*</span></span>
+                        <select class="col-select" data-field="col_amount"></select>
+                        <span class="sample-values" data-field="col_amount"></span>
+                    </div>
+                    <div class="mapping-row" data-field="col_type">
+                        <span class="field-name">Type</span>
+                        <select class="col-select" data-field="col_type"></select>
+                        <span class="sample-values" data-field="col_type"></span>
+                    </div>
+                    <div class="mapping-row" data-field="col_category">
+                        <span class="field-name">Category</span>
+                        <select class="col-select" data-field="col_category"></select>
+                        <span class="sample-values" data-field="col_category"></span>
+                    </div>
+                    <div class="mapping-row" data-field="col_wallet">
+                        <span class="field-name">Wallet</span>
+                        <select class="col-select" data-field="col_wallet"></select>
+                        <span class="sample-values" data-field="col_wallet"></span>
+                    </div>
+                    <div class="mapping-row" data-field="col_currency">
+                        <span class="field-name">Currency</span>
+                        <select class="col-select" data-field="col_currency"></select>
+                        <span class="sample-values" data-field="col_currency"></span>
+                    </div>
+                    <div class="mapping-row" data-field="col_note">
+                        <span class="field-name">Note</span>
+                        <select class="col-select" data-field="col_note"></select>
+                        <span class="sample-values" data-field="col_note"></span>
+                    </div>
+                    <div class="mapping-row" data-field="col_exchange_rate">
+                        <span class="field-name">Exchange Rate</span>
+                        <select class="col-select" data-field="col_exchange_rate"></select>
+                        <span class="sample-values" data-field="col_exchange_rate"></span>
+                    </div>
+                    <div class="mapping-row" data-field="col_amount_eur">
+                        <span class="field-name">Amount (EUR)</span>
+                        <select class="col-select" data-field="col_amount_eur"></select>
+                        <span class="sample-values" data-field="col_amount_eur"></span>
+                    </div>
+                    <div class="mapping-row" data-field="col_labels">
+                        <span class="field-name">Labels</span>
+                        <select class="col-select" data-field="col_labels"></select>
+                        <span class="sample-values" data-field="col_labels"></span>
+                    </div>
+                </div>
+
+                <!-- Preview Table -->
+                <h4 style="margin-top:18px">Preview (first 5 rows)</h4>
+                <div class="import-preview-wrap">
+                    <table class="import-preview-table" id="previewTable"></table>
+                </div>
+
+                <div class="import-actions">
+                    <button class="btn btn-primary" id="importBtn" onclick="executeImport()">Import Transactions</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Results -->
+        <div id="importStep3" class="import-step" style="display:none">
+            <div class="card import-result-card">
+                <h3 id="resultTitle"></h3>
+                <p id="resultSummary"></p>
+                <div id="resultErrors" class="import-errors" style="display:none"></div>
+                <div class="import-actions">
+                    <button class="btn btn-primary" onclick="resetImport()">Import Another File</button>
+                    <a href="{{ url_for('main.transactions') }}" class="btn btn-outline">View Transactions</a>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='import.js') }}"></script>
+{% endblock %}

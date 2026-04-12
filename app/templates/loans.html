@@ -5,7 +5,7 @@
     {% include "partials/sidebar.html" %}
     <main class="main-content">
         <header class="top-bar">
-            <button class="menu-toggle" onclick="toggleSidebar()">&#9776;</button>
+            <button class="menu-toggle" onclick="toggleSidebar()"><span class="mi">menu</span></button>
             <h2>Loans</h2>
         </header>
 
@@ -13,7 +13,7 @@
             <div class="summary-cards" id="loanSummary"></div>
             <div id="loansList" class="budgets-grid"></div>
             <div class="card" style="padding:20px;color:var(--text-secondary);font-size:.9rem;text-align:center">
-                💡 To add a loan account, go to <a href="/wallets" style="color:var(--primary)">Wallets</a> and create a wallet with "Mark as Loan Account" enabled.
+                <span class="mi" style="font-size:18px;vertical-align:-3px">info</span> To add a loan account, go to <a href="/wallets" style="color:var(--primary)">Wallets</a> and create a wallet with "Mark as Loan Account" enabled.
             </div>
         </div>
 
