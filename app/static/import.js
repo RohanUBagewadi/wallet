@@ -40,7 +40,7 @@ async function loadWallets() {
         const wallets = await api("/api/wallets");
         const sel = document.getElementById("defaultWallet");
         sel.innerHTML = "";
-        wallets.forEach(w => {
+        [...wallets].sort((a, b) => a.name.localeCompare(b.name)).forEach(w => {
             const opt = document.createElement("option");
             opt.value = w.id;
             opt.textContent = `${w.name} (${w.currency})`;
@@ -140,9 +140,10 @@ function splitCSVLine(line) {
 }
 
 function populateMappingSelects() {
+    const sortedHeaders = [...csvHeaders].sort((a, b) => a.localeCompare(b));
     document.querySelectorAll(".col-select").forEach(sel => {
         sel.innerHTML = '<option value="">— skip —</option>';
-        csvHeaders.forEach((h, idx) => {
+        sortedHeaders.forEach((h) => {
             const opt = document.createElement("option");
             opt.value = h;
             opt.textContent = h;

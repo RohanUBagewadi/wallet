@@ -8,3 +8,5 @@ venv/
 *.db
 
 backups/
+data_to_import/
+data_to_impor/

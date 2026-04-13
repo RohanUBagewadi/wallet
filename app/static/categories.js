@@ -2,8 +2,8 @@
 
 async function loadCategories() {
     const cats = await api('/api/categories');
-    const expense = cats.filter(c => c.type === 'expense');
-    const income = cats.filter(c => c.type === 'income');
+    const expense = cats.filter(c => c.type === 'expense').sort((a, b) => a.name.localeCompare(b.name));
+    const income = cats.filter(c => c.type === 'income').sort((a, b) => a.name.localeCompare(b.name));
 
     document.getElementById('expenseCount').textContent = `(${expense.length})`;
     document.getElementById('incomeCount').textContent = `(${income.length})`;

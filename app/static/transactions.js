@@ -6,12 +6,15 @@ let currentItems = []; // store last loaded items for re-render
 
 async function loadFilterDropdowns() {
     const [cats, wallets, labels] = await Promise.all([api('/api/categories'), api('/api/wallets'), api('/api/labels')]);
+    const sortedWallets = [...wallets].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedCats = [...cats].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedLabels = [...labels].sort((a, b) => a.name.localeCompare(b.name));
     const wSel = document.getElementById('filterWallet');
-    wSel.innerHTML = '<option value="">All Wallets</option>' + wallets.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+    wSel.innerHTML = '<option value="">All Wallets</option>' + sortedWallets.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
     const cSel = document.getElementById('filterCategory');
-    cSel.innerHTML = '<option value="">All Categories</option>' + cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    cSel.innerHTML = '<option value="">All Categories</option>' + sortedCats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     const lSel = document.getElementById('filterLabel');
-    lSel.innerHTML = '<option value="">All Labels</option>' + labels.map(l =>
+    lSel.innerHTML = '<option value="">All Labels</option>' + sortedLabels.map(l =>
         `<option value="${l.id}" style="color:${l.color}">${l.name}</option>`
     ).join('');
 }

@@ -344,7 +344,7 @@ def process_recurring_transactions():
 @api_bp.route("/labels", methods=["GET"])
 @login_required
 def get_labels():
-    labels = Label.query.filter_by(user_id=current_user.id).all()
+    labels = Label.query.filter_by(user_id=current_user.id).order_by(func.lower(Label.name)).all()
     return jsonify([{"id": l.id, "name": l.name, "color": l.color} for l in labels])
 
 
@@ -697,7 +697,7 @@ def import_mapped():
 @api_bp.route("/wallets", methods=["GET"])
 @login_required
 def get_wallets():
-    wallets = Wallet.query.filter_by(user_id=current_user.id).all()
+    wallets = Wallet.query.filter_by(user_id=current_user.id).order_by(func.lower(Wallet.name)).all()
     return jsonify([_wallet_to_dict(w) for w in wallets])
 
 
@@ -925,7 +925,7 @@ def delete_transfer(tid):
 @api_bp.route("/categories", methods=["GET"])
 @login_required
 def get_categories():
-    cats = Category.query.all()
+    cats = Category.query.order_by(Category.type, func.lower(Category.name)).all()
     return jsonify([{"id": c.id, "name": c.name, "type": c.type, "color": c.color, "icon": c.icon} for c in cats])
 
 

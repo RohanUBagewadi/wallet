@@ -31,7 +31,7 @@ function budgetColor(pct) {
 async function loadBudgetCategories() {
     const cats = await api('/api/categories');
     const sel = document.getElementById('budgetCategory');
-    const expenseCats = cats.filter(c => c.type === 'expense');
+    const expenseCats = cats.filter(c => c.type === 'expense').sort((a, b) => a.name.localeCompare(b.name));
     sel.innerHTML = expenseCats.map(c =>
         `<option value="${c.id}">${c.icon} ${c.name}</option>`
     ).join('');
